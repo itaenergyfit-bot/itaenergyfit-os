@@ -21,6 +21,12 @@
 
 <script>window.addEventListener('error',function(e){console.warn('erro contido:',e.message); e.preventDefault();},true);window.addEventListener('unhandledrejection',function(e){e.preventDefault();});</script>
 
+<style>
+/* Fix sacola mobile - evita tela branca com 2+ itens */
+@media (max-width:768px){
+  [class*="drawer"], [class*="bag"], [class*="sacola"], [class*="cart"]{max-height:100dvh!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+}
+</style>
 </head>
 <body>
   <div id="root"></div>
