@@ -27,6 +27,9 @@
   [class*="drawer"], [class*="bag"], [class*="sacola"], [class*="cart"]{max-height:100dvh!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
 }
 </style>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));}
+</script>
 </head>
 <body>
   <div id="root"></div>
