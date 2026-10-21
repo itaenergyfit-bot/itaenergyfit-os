@@ -1,11 +1,1 @@
 
-{
-  "name": "ItaEnergyFit OS",
-  "short_name": "ItaEnergyFit",
-  "description": "Sistema de gestão da loja ItaEnergyFit",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#166534"
-}
