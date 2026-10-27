@@ -161,6 +161,24 @@ a.ita-btn{text-decoration:none;box-sizing:border-box}
 .ita-bn-add{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:999px;border:2px dashed var(--line,#ccc);background:var(--card,#fff);font-size:13px;font-weight:700;cursor:pointer;padding:0 12px;text-align:center}
 .ita-bn-add input{display:none}
 </style>
+
+<style id="itaenergyfit-identidade-sistema">
+:root{--ief-verde:#166534;--ief-verde-escuro:#14532d;--ief-verde-claro:#dcfce7;--ief-chumbo:#27272a;--ief-cinza:#52525b;--ief-fundo:#f8fafc;--ief-borda:#d4d4d8}
+html,body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+h1,h2,h3,h4,.font-display{font-family:Anton,Inter,ui-sans-serif,sans-serif}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ief-verde);outline-offset:2px}
+button,[role=button],a[class*="bg-green"],button[class*="bg-"]{transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
+button[class*="bg-black"],button[class*="bg-zinc-900"],button[class*="bg-neutral-900"],a[class*="bg-black"],a[class*="bg-zinc-900"]{background-color:var(--ief-verde)!important;border-color:var(--ief-verde)!important}
+button[class*="bg-black"]:hover,button[class*="bg-zinc-900"]:hover,button[class*="bg-neutral-900"]:hover,a[class*="bg-black"]:hover,a[class*="bg-zinc-900"]:hover{background-color:var(--ief-verde-escuro)!important}
+button[class*="bg-green-"],a[class*="bg-green-"],[class*="bg-emerald-"]{background-color:var(--ief-verde)!important}
+button[class*="bg-green-"]:hover,a[class*="bg-green-"]:hover{background-color:var(--ief-verde-escuro)!important}
+input:focus,select:focus,textarea:focus{border-color:var(--ief-verde)!important;box-shadow:0 0 0 3px rgba(22,101,52,.12)}
+[class*="border-green-"],[class*="border-emerald-"]{border-color:var(--ief-verde)!important}
+[class*="text-green-"],[class*="text-emerald-"]{color:var(--ief-verde)!important}
+::selection{background:var(--ief-verde-claro);color:var(--ief-verde-escuro)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+
 </head>
 <body>
   <div id="root"></div>
