@@ -2576,7 +2576,7 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
  }
  try{
   if(!window.firebase)throw new Error("O Firebase não carregou. Confira a internet e atualize a página.");
-  var app=firebase.apps.length?firebase.app():firebase.initializeApp({apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"});
+  var app=firebase.apps.length?firebase.app():firebase.initializeApp({apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgqE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"});
   auth=firebase.auth(app);
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(e){msg(e);});
   auth.onAuthStateChanged(unlock,function(e){msg(e);});
@@ -2654,7 +2654,7 @@ LINK: https://rastreamento.correios.com.br/app/index.php?objeto=${K.rastreio}`,g
 <script>
 (function(){
 const ADMIN_EMAIL="itaenergyfit@gmail.com";
-const firebaseConfig={apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"};
+const firebaseConfig={apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgqE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"};
 const screen=document.getElementById("ita-auth-screen"),form=document.getElementById("ita-auth-form"),email=document.getElementById("ita-auth-email"),password=document.getElementById("ita-auth-password"),submit=document.getElementById("ita-auth-submit"),error=document.getElementById("ita-auth-error"),help=document.getElementById("ita-auth-help");
 let auth;
 const messages={"auth/invalid-email":"Confira o formato do e-mail.","auth/user-not-found":"Esse e-mail não está cadastrado no Firebase Authentication.","auth/wrong-password":"Senha incorreta. Confira a senha cadastrada no Firebase.","auth/invalid-credential":"E-mail ou senha incorretos.","auth/too-many-requests":"Muitas tentativas. Aguarde um pouco e tente novamente.","auth/network-request-failed":"Sem conexão com a internet. Verifique sua rede.","auth/unauthorized-domain":"O domínio do GitHub Pages precisa ser autorizado no Firebase Authentication."};
