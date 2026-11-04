@@ -2590,15 +2590,13 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
   if(!window.firebase)throw new Error("O Firebase não carregou. Confira a internet e atualize a página.");
   var app=firebase.apps.length?firebase.app():firebase.initializeApp({apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgqE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"});
   auth=firebase.auth(app);
-  // Exigir autenticação novamente ao abrir/recarregar o sistema.
+  // O painel nunca é liberado por uma sessão restaurada: somente pelo envio do formulário.
   auth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function(){
    return auth.signOut();
   }).then(function(){
-   auth.onAuthStateChanged(unlock,function(e){
-    document.body.classList.add("ita-auth-locked");screen.style.display="flex";
-    wait.style.display="none";subtitle.textContent="Acesso administrativo";
-    form.style.display="block";help.style.display="block";msg(e);
-   });
+   document.body.classList.add("ita-auth-locked");screen.style.display="flex";
+   wait.style.display="none";subtitle.textContent="Acesso administrativo";
+   form.style.display="block";help.style.display="block";
   }).catch(function(e){
    document.body.classList.add("ita-auth-locked");screen.style.display="flex";
    wait.style.display="none";subtitle.textContent="Acesso administrativo";
@@ -2607,8 +2605,12 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
  }catch(e){wait.style.display="none";subtitle.textContent="Acesso administrativo";form.style.display="block";help.style.display="block";error.textContent=e.message;}
  form.addEventListener("submit",async function(ev){
   ev.preventDefault();error.textContent="";submit.disabled=true;submit.textContent="Verificando...";
-  try{if(!auth)throw new Error("Firebase indisponível. Atualize a página.");await auth.signInWithEmailAndPassword(email.value.trim(),password.value);}
-  catch(e){msg(e);}
+  try{
+   if(!auth)throw new Error("Firebase indisponível. Atualize a página.");
+   var credential=await auth.signInWithEmailAndPassword(email.value.trim(),password.value);
+   if(credential.user && (credential.user.email||"").toLowerCase()===ADMIN){unlock(credential.user);}
+   else{await auth.signOut();throw new Error("Este e-mail não está autorizado como administrador.");}
+  }catch(e){msg(e);}
   finally{submit.disabled=false;submit.textContent="Entrar no sistema";}
  });
  help.addEventListener("click",async function(){
