@@ -2547,13 +2547,14 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
 </style>
 <div id="ita-auth-real-screen" role="dialog" aria-modal="true" aria-label="Login do Sistema ItaEnergyFit">
  <div id="ita-auth-real-card">
-  <div class="mark">ITA</div><h1>Sistema ItaEnergyFit</h1><p class="sub">Acesso administrativo</p>
-  <form id="ita-auth-real-form">
+  <div class="mark">ITA</div><h1>Sistema ItaEnergyFit</h1><p class="sub" id="ita-auth-real-sub">Verificando seu acesso...</p>
+  <div id="ita-auth-real-wait" style="text-align:center;color:#b6c6bd;font-size:13px;padding:16px 0 8px">Aguarde um instante</div>
+  <form id="ita-auth-real-form" style="display:none">
    <label for="ita-auth-real-email">E-mail</label><input id="ita-auth-real-email" type="email" autocomplete="username" placeholder="seu e-mail" required>
    <label for="ita-auth-real-password">Senha</label><input id="ita-auth-real-password" type="password" autocomplete="current-password" placeholder="Sua senha do Firebase" required>
    <button id="ita-auth-real-submit" type="submit">Entrar no sistema</button><div id="ita-auth-real-error" role="alert"></div>
   </form>
-  <button id="ita-auth-real-help" type="button">Esqueci minha senha</button>
+  <button id="ita-auth-real-help" type="button" style="display:none">Esqueci minha senha</button>
  </div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -2564,6 +2565,7 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
  var screen=document.getElementById("ita-auth-real-screen"),form=document.getElementById("ita-auth-real-form");
  var email=document.getElementById("ita-auth-real-email"),password=document.getElementById("ita-auth-real-password");
  var submit=document.getElementById("ita-auth-real-submit"),error=document.getElementById("ita-auth-real-error"),help=document.getElementById("ita-auth-real-help");
+ var wait=document.getElementById("ita-auth-real-wait"),subtitle=document.getElementById("ita-auth-real-sub");
  var ADMIN="itaenergyfit@gmail.com",auth=null,ready=false;
  function msg(e){var m={"auth/invalid-email":"Confira o formato do e-mail.","auth/user-not-found":"E-mail não cadastrado no Firebase.","auth/wrong-password":"Senha incorreta.","auth/invalid-credential":"E-mail ou senha incorretos.","auth/too-many-requests":"Muitas tentativas. Aguarde e tente novamente.","auth/network-request-failed":"Verifique sua conexão com a internet.","auth/unauthorized-domain":"Este domínio não está autorizado no Firebase."};error.textContent=m[e.code]||e.message||"Não foi possível autenticar.";}
  function unlock(user){
@@ -2572,6 +2574,8 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
   }else{
    if(user && auth)auth.signOut();
    document.body.classList.add("ita-auth-locked");screen.style.display="flex";ready=false;
+   wait.style.display="none";subtitle.textContent="Acesso administrativo";
+   form.style.display="block";help.style.display="block";
   }
  }
  try{
@@ -2579,8 +2583,8 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
   var app=firebase.apps.length?firebase.app():firebase.initializeApp({apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgqE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"});
   auth=firebase.auth(app);
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(e){msg(e);});
-  auth.onAuthStateChanged(unlock,function(e){msg(e);});
- }catch(e){error.textContent=e.message;}
+  auth.onAuthStateChanged(unlock,function(e){wait.style.display="none";subtitle.textContent="Acesso administrativo";form.style.display="block";help.style.display="block";msg(e);});
+ }catch(e){wait.style.display="none";subtitle.textContent="Acesso administrativo";form.style.display="block";help.style.display="block";error.textContent=e.message;}
  form.addEventListener("submit",async function(ev){
   ev.preventDefault();error.textContent="";submit.disabled=true;submit.textContent="Verificando...";
   try{if(!auth)throw new Error("Firebase indisponível. Atualize a página.");await auth.signInWithEmailAndPassword(email.value.trim(),password.value);}
