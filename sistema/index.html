@@ -2544,6 +2544,7 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
 #ita-auth-real-error{min-height:18px;color:#ffaaa4;font-size:12px;line-height:1.4;margin-top:12px}
 #ita-auth-real-help{display:block;text-align:center;color:#b6c6bd;font-size:12px;margin-top:15px;text-decoration:underline;cursor:pointer;background:none;border:0;width:100%}
 @media(max-width:480px){#ita-auth-real-card{padding:24px 20px}}
+#ita-auth-real-logout{position:fixed;z-index:2147483646;right:14px;top:14px;border:1px solid #527260;border-radius:20px;background:#1c2b25;color:#eaf5ed;padding:9px 13px;font:12px Arial;font-weight:700;cursor:pointer;box-shadow:0 4px 18px #0003}
 </style>
 <div id="ita-auth-real-screen" role="dialog" aria-modal="true" aria-label="Login do Sistema ItaEnergyFit">
  <div id="ita-auth-real-card">
@@ -2569,10 +2570,17 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
  var ADMIN="itaenergyfit@gmail.com",auth=null,ready=false;
  function msg(e){var m={"auth/invalid-email":"Confira o formato do e-mail.","auth/user-not-found":"E-mail não cadastrado no Firebase.","auth/wrong-password":"Senha incorreta.","auth/invalid-credential":"E-mail ou senha incorretos.","auth/too-many-requests":"Muitas tentativas. Aguarde e tente novamente.","auth/network-request-failed":"Verifique sua conexão com a internet.","auth/unauthorized-domain":"Este domínio não está autorizado no Firebase."};error.textContent=m[e.code]||e.message||"Não foi possível autenticar.";}
  function unlock(user){
+  var logout=document.getElementById("ita-auth-real-logout");
   if(user && (user.email||"").toLowerCase()===ADMIN){
    screen.style.display="none";document.body.classList.remove("ita-auth-locked");ready=true;
+   if(!logout){
+    logout=document.createElement("button");logout.id="ita-auth-real-logout";logout.type="button";logout.textContent="Administrador • Sair";
+    logout.onclick=function(){if(confirm("Deseja sair do Sistema ItaEnergyFit?")){document.body.classList.add("ita-auth-locked");screen.style.display="flex";wait.style.display="none";subtitle.textContent="Acesso administrativo";form.style.display="block";help.style.display="block";auth.signOut().catch(function(e){msg(e);});}};
+    document.body.appendChild(logout);
+   }
   }else{
-   if(user && auth)auth.signOut();
+   if(logout)logout.remove();
+   if(user && auth){auth.signOut();return;}
    document.body.classList.add("ita-auth-locked");screen.style.display="flex";ready=false;
    wait.style.display="none";subtitle.textContent="Acesso administrativo";
    form.style.display="block";help.style.display="block";
@@ -2582,8 +2590,20 @@ body.ita-auth-locked #root{visibility:hidden!important;pointer-events:none!impor
   if(!window.firebase)throw new Error("O Firebase não carregou. Confira a internet e atualize a página.");
   var app=firebase.apps.length?firebase.app():firebase.initializeApp({apiKey:"AIzaSyA0N2LC-_14XQGRrh-tN0teelO8p4JOgqE",authDomain:"itaenergyfit-9bf92.firebaseapp.com",projectId:"itaenergyfit-9bf92",storageBucket:"itaenergyfit-9bf92.firebasestorage.app",messagingSenderId:"650817273072",appId:"1:650817273072:web:7d0c20e25a71b5a5aa1635"});
   auth=firebase.auth(app);
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(e){msg(e);});
-  auth.onAuthStateChanged(unlock,function(e){wait.style.display="none";subtitle.textContent="Acesso administrativo";form.style.display="block";help.style.display="block";msg(e);});
+  // Exigir autenticação novamente ao abrir/recarregar o sistema.
+  auth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function(){
+   return auth.signOut();
+  }).then(function(){
+   auth.onAuthStateChanged(unlock,function(e){
+    document.body.classList.add("ita-auth-locked");screen.style.display="flex";
+    wait.style.display="none";subtitle.textContent="Acesso administrativo";
+    form.style.display="block";help.style.display="block";msg(e);
+   });
+  }).catch(function(e){
+   document.body.classList.add("ita-auth-locked");screen.style.display="flex";
+   wait.style.display="none";subtitle.textContent="Acesso administrativo";
+   form.style.display="block";help.style.display="block";msg(e);
+  });
  }catch(e){wait.style.display="none";subtitle.textContent="Acesso administrativo";form.style.display="block";help.style.display="block";error.textContent=e.message;}
  form.addEventListener("submit",async function(ev){
   ev.preventDefault();error.textContent="";submit.disabled=true;submit.textContent="Verificando...";
