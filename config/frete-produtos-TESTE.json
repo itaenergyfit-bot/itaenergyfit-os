@@ -1,0 +1,16 @@
+{
+  "ambiente": "teste",
+  "versao": 1,
+  "observacao": "Referencia de medidas para futura validacao no servidor. Nao usar isoladamente para cobrar frete.",
+  "produtos": [
+    {
+      "nome": "Conjunto High-Form ITA – Verde Floresta",
+      "peso_kg": 0.7,
+      "comprimento_cm": 35,
+      "largura_cm": 25,
+      "altura_cm": 5,
+      "quantidade_referencia": 1,
+      "validado_em_teste": true
+    }
+  ]
+}
