@@ -2733,5 +2733,45 @@ window.ITA_CONFIG = {
 </script>
   <script>(function(){function m(a){var h=a.getAttribute("href");if(!h)return;try{var u=new URL(h,document.baseURI);if(((u.protocol==="http:"||u.protocol==="https:")&&u.host!==location.host)||u.protocol==="mailto:"||u.protocol==="tel:"||u.protocol==="sms:"){a.target="_blank";a.rel="noopener noreferrer";}}catch(e){}}function s(){document.querySelectorAll("a[href]").forEach(m);}if(document.readyState!=="loading"){s();}else{document.addEventListener("DOMContentLoaded",s);}document.addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href]");if(a){m(a);}},true);})();</script>
   <script type="application/json" data-clippy-inline-media-manifest="1">{"version":1,"slots":[]}</script>
+
+<!-- ita-pedidos-reais-v1: painel de consulta somente leitura, para homologação -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<style>
+#ita-pedidos-reais-open{position:fixed;bottom:20px;left:16px;z-index:9900;background:#A8E10C;color:#101510;border:0;border-radius:12px;padding:12px 16px;font-weight:800;box-shadow:0 4px 18px #0008;display:none}
+#ita-pedidos-reais-panel{position:fixed;inset:0;z-index:9990;background:#07110beF;color:#e8f5d0;overflow:auto;padding:22px 16px;font:14px system-ui,sans-serif;display:none}
+#ita-pedidos-reais-panel .ita-wrap{max-width:1000px;margin:auto}
+#ita-pedidos-reais-panel button{cursor:pointer;border:1px solid #5b6b51;border-radius:8px;padding:9px 12px;color:inherit;background:#203025}
+#ita-pedidos-reais-panel table{width:100%;border-collapse:collapse;min-width:620px}
+#ita-pedidos-reais-panel th,#ita-pedidos-reais-panel td{padding:11px;text-align:left;border-bottom:1px solid #38503c;vertical-align:top}
+#ita-pedidos-reais-panel .ita-scroll{overflow:auto}
+</style>
+<button id="ita-pedidos-reais-open" type="button">PEDIDOS REAIS • TESTE</button>
+<section id="ita-pedidos-reais-panel" role="dialog" aria-label="Pedidos reais do Firebase">
+<div class="ita-wrap">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<h2>Pedidos reais • Firestore</h2><button id="ita-pedidos-reais-close" type="button">Fechar</button>
+</div>
+<p>Consulta somente leitura à coleção pedidos. Os pedidos de demonstração da aba antiga não são vendas reais.</p>
+<p id="ita-pedidos-reais-status" role="status">Aguardando acesso autorizado…</p>
+<div class="ita-scroll"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Pagamento</th><th>Cupom</th><th>Data</th></tr></thead><tbody id="ita-pedidos-reais-rows"></tbody></table></div>
+</div></section>
+<script>
+(function(){
+"use strict";
+const admin="itaenergyfit@gmail.com",open=document.getElementById("ita-pedidos-reais-open"),panel=document.getElementById("ita-pedidos-reais-panel"),close=document.getElementById("ita-pedidos-reais-close"),status=document.getElementById("ita-pedidos-reais-status"),rows=document.getElementById("ita-pedidos-reais-rows");
+let unsubscribe=null,authorized=false;
+function cell(tr,value){const td=document.createElement("td");td.textContent=String(value??"—");tr.appendChild(td);}
+function date(v){if(!v)return "—";try{if(v.toDate)return v.toDate().toLocaleString("pt-BR");if(typeof v==="number")return new Date(v).toLocaleString("pt-BR");if(typeof v==="string")return v;return "—";}catch(e){return "—";}}
+function money(v){const n=Number(v);return Number.isFinite(n)?"R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";}
+function draw(snap){rows.replaceChildren();status.textContent=snap.size+" pedido(s) encontrado(s) no Firebase.";const docs=snap.docs.slice().sort((a,b)=>{const x=a.data(),y=b.data();const t=o=>{const d=o.criadoEm||o.createdAt||o.criado||o.data;return d&&d.toMillis?d.toMillis():typeof d==="number"?d:Date.parse(d)||0;};return t(y)-t(x);});docs.slice(0,100).forEach(doc=>{const p=doc.data(),tr=document.createElement("tr");const c=p.cliente||p.customer||{};cell(tr,p.numero||doc.id);cell(tr,typeof c==="string"?c:(c.nome||p.nome||p.nomeCliente||"—"));cell(tr,money(p.total??p.valorTotal??p.valor));cell(tr,p.statusPagamento||p.status||"—");cell(tr,p.cupom||p.codigoAfiliada||"—");cell(tr,date(p.criadoEm||p.createdAt||p.criado||p.data));rows.appendChild(tr);});if(snap.size>100)status.textContent+=" Exibindo os primeiros 100.";}
+function stop(){if(unsubscribe){unsubscribe();unsubscribe=null;}}
+function start(){stop();if(!authorized)return;try{const db=firebase.firestore();status.textContent="Carregando pedidos reais…";unsubscribe=db.collection("pedidos").onSnapshot(draw,err=>{status.textContent="Erro ao ler pedidos: "+(err.code||err.message)+". Confira as regras do Firestore.";});}catch(e){status.textContent="Não foi possível iniciar a leitura: "+e.message;}}
+close.addEventListener("click",()=>{panel.style.display="none";stop();});
+open.addEventListener("click",()=>{if(!authorized)return;panel.style.display="block";start();});
+function init(){if(!window.firebase||!firebase.apps.length||!firebase.auth||!firebase.firestore){setTimeout(init,500);return;}firebase.auth().onAuthStateChanged(user=>{authorized=!!(user&&user.email&&user.email.toLowerCase()===admin);open.style.display=authorized?"block":"none";if(!authorized){panel.style.display="none";stop();rows.replaceChildren();status.textContent="Acesso não autorizado.";}});}
+init();
+})();
+</script>
+
 </body>
 </html>
