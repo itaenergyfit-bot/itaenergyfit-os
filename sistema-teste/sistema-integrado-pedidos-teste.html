@@ -2958,39 +2958,85 @@ addProductsTab();
 })();
 </script>
 
-<!-- ITA PEDIDOS REAIS v1: consulta somente leitura, integrada à base Produtos/Estoque -->
+<!-- ITA PEDIDOS REAIS v2: gestão de consulta integrada, sem dados demonstrativos -->
 <style>
-#ita-pedidos-real-panel{display:none;position:fixed;inset:65px 2% 2%;z-index:2147483250;background:#10231f;color:#fff;border:2px solid #2ee59d;border-radius:14px;padding:18px;overflow:auto;font:14px Arial;box-shadow:0 0 0 100vmax #000b}
+#ita-pedidos-real-panel{display:none;position:fixed;inset:5vh 2% 2%;z-index:2147483250;background:#10231f;color:#fff;border:2px solid #2ee59d;border-radius:14px;padding:18px;overflow:auto;font:14px Arial;box-shadow:0 0 0 100vmax #000b}
 #ita-pedidos-real-panel button{background:#2ee59d;color:#09251b;border:0;border-radius:8px;padding:9px 14px;font-weight:bold;cursor:pointer}
-#ita-pedidos-real-panel table{border-collapse:collapse;width:100%;min-width:700px}
+#ita-pedidos-real-panel table{border-collapse:collapse;width:100%;min-width:850px}
 #ita-pedidos-real-panel th,#ita-pedidos-real-panel td{border-bottom:1px solid #37594d;padding:10px;text-align:left;vertical-align:top}
 #ita-pedidos-real-panel th{color:#2ee59d}
 #ita-pedidos-real-panel .ita-pedidos-scroll{overflow-x:auto}
+#ita-pedidos-real-panel .ita-order-detail{background:#173b30;border:1px solid #4a8571;border-radius:10px;padding:15px;margin:12px 0}
+#ita-pedidos-real-panel .ita-order-detail dl{display:grid;grid-template-columns:minmax(100px,170px) 1fr;gap:8px}
+#ita-pedidos-real-panel .ita-order-detail dt{color:#a6e7ca;font-weight:bold}
+#ita-pedidos-real-panel .ita-order-detail dd{margin:0;overflow-wrap:anywhere}
+#ita-pedidos-real-panel .ita-order-detail pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px monospace;background:#09221b;padding:12px;border-radius:8px}
+#ita-pedidos-real-panel .ita-order-detail table{min-width:500px}
+#ita-pedidos-real-panel #ita-pedidos-filter{background:#fff;color:#10231f;padding:9px;border-radius:8px}
+@media(max-width:700px){#ita-pedidos-real-panel{inset:2vh 1% 1%;padding:12px}}
 </style>
-<section id="ita-pedidos-real-panel" role="dialog" aria-label="Pedidos reais Firebase">
-<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2>PEDIDOS REAIS — FIREBASE</h2><button id="ita-pedidos-real-close" type="button">Fechar</button></div>
-<p>Somente leitura. Nenhum pedido, pagamento, comissão ou estoque será alterado nesta versão.</p>
+<section id="ita-pedidos-real-panel" role="dialog" aria-modal="true" aria-label="Pedidos reais Firebase">
+<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2>PEDIDOS — FIREBASE</h2><button id="ita-pedidos-real-close" type="button">Fechar</button></div>
+<p>Pedidos reais em tempo real. Somente leitura: esta tela não altera pagamentos, pedidos, comissões ou estoque.</p>
+<label>Filtrar status: <select id="ita-pedidos-filter"><option value="todos">Todos</option><option value="pendentes">Aguardando pagamento</option><option value="pagos">Pagos</option><option value="outros">Outros status</option></select></label>
 <p id="ita-pedidos-real-status" role="status">Aguardando login…</p>
-<div class="ita-pedidos-scroll"><table><thead><tr><th>ID</th><th>Cliente</th><th>Valor</th><th>Status</th><th>Cupom</th><th>Data</th></tr></thead><tbody id="ita-pedidos-real-rows"></tbody></table></div>
+<div class="ita-pedidos-scroll"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Status</th><th>Cupom</th><th>Data</th><th>Detalhes</th></tr></thead><tbody id="ita-pedidos-real-rows"></tbody></table></div>
+<div id="ita-pedidos-detail" class="ita-order-detail" hidden></div>
 </section>
 <script>
 (function(){
 'use strict';
-const panel=document.getElementById('ita-pedidos-real-panel'),close=document.getElementById('ita-pedidos-real-close'),status=document.getElementById('ita-pedidos-real-status'),rows=document.getElementById('ita-pedidos-real-rows');
-let stop=null,authReady=false;
-const authorized=()=>window.firebase&&firebase.auth&&firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com';
-function date(x){try{if(!x)return '—';if(typeof x.toDate==='function')return x.toDate().toLocaleString('pt-BR');if(typeof x==='number')return new Date(x).toLocaleString('pt-BR');return String(x)}catch(e){return '—'}}
-function td(tr,v){const c=document.createElement('td');c.textContent=String(v??'—');tr.appendChild(c)}
-function render(snap){rows.replaceChildren();status.textContent=snap.size+' pedido(s) encontrado(s). Exibindo até 100 registros.';const docs=snap.docs.slice();docs.sort((a,b)=>{const t=d=>{const p=d.data(),v=p.criadoEm||p.createdAt||p.criado||p.data;return v?.toMillis?.()??(typeof v==='number'?v:Date.parse(v)||0)};return t(b)-t(a)});for(const d of docs.slice(0,100)){const p=d.data(),tr=document.createElement('tr'),cliente=p.cliente||p.customer||{},valor=Number(p.total??p.valorTotal??p.valor);td(tr,p.numero||d.id);td(tr,typeof cliente==='string'?cliente:(cliente.nome||p.nomeCliente||p.nome||'—'));td(tr,Number.isFinite(valor)?valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'—');td(tr,p.statusPagamento||p.status||'—');td(tr,p.cupom||p.codigoAfiliada||'—');td(tr,date(p.criadoEm||p.createdAt||p.criado||p.data));rows.appendChild(tr)}}
-function hide(){panel.style.display='none';if(stop){stop();stop=null}}
-function open(){if(!authorized()){status.textContent='Acesso restrito ao administrador.';return}panel.style.display='block';status.textContent='Carregando pedidos reais…';rows.replaceChildren();if(stop)stop();try{stop=firebase.firestore().collection('pedidos').onSnapshot(render,e=>{status.textContent='Falha na leitura: '+(e.code||e.message)})}catch(e){status.textContent='Erro ao iniciar Firestore: '+e.message}}
-close.addEventListener('click',hide);
-function label(el){return (el.textContent||'').trim().toUpperCase()}
-function addTab(){if(document.getElementById('ita-pedidos-real-tab'))return;const nodes=document.querySelectorAll('button,[role="tab"]');for(const el of nodes){if(el.closest('#ita-pedidos-real-panel,#ita-stock-panel,#ita-integrado-panel'))continue;if(label(el)==='PEDIDOS'){const b=document.createElement('button');b.type='button';b.id='ita-pedidos-real-tab';b.textContent='PEDIDOS REAIS';b.style.cssText='margin-left:6px;padding:7px 10px;border-radius:8px;background:#2ee59d;color:#08271d;font-weight:800';b.onclick=open;el.insertAdjacentElement('afterend',b);return}}}
-const observer=new MutationObserver(addTab);observer.observe(document.body,{childList:true,subtree:true});addTab();
-function wait(n){if(window.firebase&&firebase.auth){firebase.auth().onAuthStateChanged(u=>{authReady=true;if(!authorized())hide()})}else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
+const panel=document.getElementById('ita-pedidos-real-panel'),close=document.getElementById('ita-pedidos-real-close'),status=document.getElementById('ita-pedidos-real-status'),rows=document.getElementById('ita-pedidos-real-rows'),detail=document.getElementById('ita-pedidos-detail'),filter=document.getElementById('ita-pedidos-filter');
+let stop=null,docs=[];
+const authorized=()=>window.firebase&&typeof firebase.auth==='function'&&firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com';
+const first=(...a)=>a.find(v=>v!==undefined&&v!==null&&v!=='');
+function date(x){try{if(!x)return 'Não informado';if(typeof x.toDate==='function')return x.toDate().toLocaleString('pt-BR');if(typeof x==='number')return new Date(x).toLocaleString('pt-BR');const d=new Date(x);return isNaN(d.getTime())?String(x):d.toLocaleString('pt-BR')}catch(e){return 'Não informado'}}
+function money(x){const n=Number(x);return x!==undefined&&x!==null&&x!==''&&Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'Não informado'}
+function cell(tr,v){const c=document.createElement('td');c.textContent=String(v??'Não informado');tr.appendChild(c);return c}
+function customer(p){const c=first(p.cliente,p.customer,{});return typeof c==='string'?c:first(c.nome,c.name,p.nomeCliente,p.nome,'Não informado')}
+function statusOf(p){return String(first(p.statusPagamento,p.status,'Não informado'))}
+function category(st){const v=st.toLowerCase();if(/aguardando|pendente|pending|waiting/.test(v))return 'pendentes';if(/pago|paid|approved|aprovado/.test(v))return 'pagos';return 'outros'}
+function sortTime(d){const p=d.data(),v=first(p.criadoEm,p.createdAt,p.criado,p.data);return v?.toMillis?.()??(typeof v==='number'?v:Date.parse(v)||0)}
+function addField(dl,name,value){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=name;dd.textContent=String(value??'Não informado');dl.append(dt,dd)}
+function showDetail(d){
+ if(!authorized())return;const p=d.data();detail.replaceChildren();detail.hidden=false;
+ const title=document.createElement('h3');title.textContent='Detalhes do pedido '+String(first(p.numero,d.id));detail.appendChild(title);
+ const dl=document.createElement('dl');detail.appendChild(dl);
+ const c=first(p.cliente,p.customer,{});
+ addField(dl,'Cliente',customer(p));
+ addField(dl,'E-mail',first(c?.email,p.email,'Não informado'));
+ addField(dl,'Telefone',first(c?.telefone,c?.whatsapp,p.telefone,'Não informado'));
+ addField(dl,'Status',statusOf(p));
+ addField(dl,'Total',money(first(p.total,p.valorTotal,p.valor)));
+ addField(dl,'Subtotal',money(first(p.subtotal,p.valorProdutos)));
+ addField(dl,'Frete',money(first(p.frete?.valor,p.freteValor,p.valorFrete)));
+ addField(dl,'Entrega',first(p.frete?.servico,p.frete?.nome,p.transportadora,'Não informado'));
+ addField(dl,'Cupom',first(p.cupom,p.codigoAfiliada,'Não informado'));
+ addField(dl,'Afiliada',first(p.afiliadaId,p.afiliada,p.idAfiliada,'Não informado'));
+ addField(dl,'Pagamento',first(p.metodoPagamento,p.formaPagamento,p.pagamento?.metodo,'Não informado'));
+ addField(dl,'Data',date(first(p.criadoEm,p.createdAt,p.criado,p.data)));
+ const items=first(p.itens,p.items,p.produtos,p.carrinho);
+ const h=document.createElement('h4');h.textContent='Produtos do pedido';detail.appendChild(h);
+ if(Array.isArray(items)&&items.length){
+  const sc=document.createElement('div');sc.className='ita-pedidos-scroll';const t=document.createElement('table'),head=document.createElement('tr');['Produto','Tamanho','Cor','Quantidade','Preço'].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.appendChild(th)});t.appendChild(head);
+  for(const it of items){const tr=document.createElement('tr');cell(tr,first(it.nome,it.produtoNome,it.name,it.id,'Não informado'));cell(tr,first(it.tamanho,it.size,'Não informado'));cell(tr,first(it.cor,it.color,'Não informado'));cell(tr,first(it.quantidade,it.qtd,it.qty,'Não informado'));cell(tr,money(first(it.preco,it.precoUnitario,it.valor)));t.appendChild(tr)}sc.appendChild(t);detail.appendChild(sc);
+ }else{const p0=document.createElement('p');p0.textContent='Lista de itens não encontrada nos campos conhecidos deste pedido.';detail.appendChild(p0)}
+ const raw=document.createElement('details'),sum=document.createElement('summary'),pre=document.createElement('pre');sum.textContent='Ver campos originais do pedido (diagnóstico)';pre.textContent=JSON.stringify(p,(k,v)=>v&&typeof v.toDate==='function'?v.toDate().toISOString():v,2);raw.append(sum,pre);detail.appendChild(raw);
+ detail.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function render(){
+ rows.replaceChildren();detail.hidden=true;const selected=filter.value;const shown=docs.filter(d=>selected==='todos'||category(statusOf(d.data()))===selected);
+ status.textContent=docs.length+' pedido(s) encontrado(s) no Firebase; '+shown.length+' exibido(s).';
+ for(const d of shown){const p=d.data(),tr=document.createElement('tr');cell(tr,first(p.numero,d.id));cell(tr,customer(p));cell(tr,money(first(p.total,p.valorTotal,p.valor)));cell(tr,statusOf(p));cell(tr,first(p.cupom,p.codigoAfiliada,'—'));cell(tr,date(first(p.criadoEm,p.createdAt,p.criado,p.data)));const action=cell(tr,'');const b=document.createElement('button');b.textContent='Ver detalhes';b.type='button';b.addEventListener('click',()=>showDetail(d));action.appendChild(b);rows.appendChild(tr)}
+}
+function hide(){panel.style.display='none';detail.hidden=true;if(stop){stop();stop=null}}
+function open(){if(!authorized()){status.textContent='Acesso restrito ao administrador.';return}panel.style.display='block';status.textContent='Carregando pedidos reais…';rows.replaceChildren();if(stop)stop();try{stop=firebase.firestore().collection('pedidos').onSnapshot(snap=>{docs=snap.docs.slice().sort((a,b)=>sortTime(b)-sortTime(a));render()},e=>{status.textContent='Falha na leitura: '+(e.code||e.message)})}catch(e){status.textContent='Erro ao iniciar Firestore: '+e.message}}
+close.addEventListener('click',hide);filter.addEventListener('change',render);
+function label(el){return(el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()}
+function isPedidos(el){return label(el)==='PEDIDOS'&&!el.closest('#ita-pedidos-real-panel,#ita-stock-panel,#ita-integrado-panel')}
+document.addEventListener('click',function(ev){const el=ev.target instanceof Element?ev.target.closest('button,[role="tab"]'):null;if(!el||!isPedidos(el))return;ev.preventDefault();ev.stopImmediatePropagation();open()},true);
+function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase.auth().onAuthStateChanged(()=>{if(!authorized())hide()})}else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
 })();
 </script>
-
 </body>
 </html>
