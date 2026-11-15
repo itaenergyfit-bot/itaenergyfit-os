@@ -3328,5 +3328,115 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase
 })();
 </script>
 
+
+<!-- ITA AFILIADAS REAIS v1 -->
+<style>
+#ita-afiliadas-real{display:none;position:fixed;inset:3vh 1.5%;z-index:2147483270;overflow:auto;background:#10231f;color:#f5fff9;border:2px solid #2ee59d;border-radius:16px;padding:20px;box-shadow:0 0 0 100vmax #000b;font:14px Arial}
+#ita-afiliadas-real button{background:#2ee59d;color:#09251b;border:0;border-radius:8px;padding:10px 14px;font-weight:800;cursor:pointer}
+#ita-afiliadas-real button:disabled{opacity:.5}
+#ita-afiliadas-real input,#ita-afiliadas-real select,#ita-afiliadas-real textarea{background:#fff;color:#10231f;border:1px solid #8db6a5;border-radius:8px;padding:10px;box-sizing:border-box;width:100%;font:14px Arial}
+#ita-afiliadas-real label{display:flex;flex-direction:column;gap:5px;font-weight:bold}
+#ita-afiliadas-real .ita-af-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+#ita-afiliadas-real .ita-af-section{border:1px solid #376a57;background:#173b30;border-radius:12px;padding:15px;margin:14px 0}
+#ita-afiliadas-real .ita-af-scroll{overflow-x:auto}
+#ita-afiliadas-real table{width:100%;border-collapse:collapse;min-width:750px}
+#ita-afiliadas-real td,#ita-afiliadas-real th{border-bottom:1px solid #376a57;padding:9px;text-align:left}
+#ita-afiliadas-real th{color:#2ee59d}
+#ita-afiliadas-real #ita-af-status{white-space:pre-wrap;color:#c8f5df}
+@media(max-width:700px){#ita-afiliadas-real{inset:1%;padding:12px}}
+</style>
+<section id="ita-afiliadas-real" role="dialog" aria-modal="true" aria-label="Afiliadas Firebase">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2>AFILIADAS — FIREBASE</h2><button id="ita-af-close" type="button">Fechar</button></div>
+<p>Cadastros reais da coleção <b>afiliadas</b> e pedidos reais da coleção <b>pedidos</b>. Cupons ITA01–ITA07, comissão padrão de 10% apenas sobre pedidos confirmados como pagos. Não há exclusão de cadastros.</p>
+<p id="ita-af-status" role="status">Aguardando autenticação…</p>
+<div class="ita-af-grid">
+<div class="ita-af-section"><b>Afiliadas cadastradas</b><h2 id="ita-af-count">—</h2></div>
+<div class="ita-af-section"><b>Pedidos com cupom identificado</b><h2 id="ita-af-orders">—</h2></div>
+<div class="ita-af-section"><b>Vendas pagas identificadas</b><h2 id="ita-af-paid">—</h2></div>
+<div class="ita-af-section"><b>Comissão estimada sobre vendas pagas</b><h2 id="ita-af-commission">—</h2></div>
+</div>
+<div class="ita-af-section">
+<h3 id="ita-af-form-title">Cadastrar afiliada</h3>
+<form id="ita-af-form">
+<div class="ita-af-grid">
+<label>Nome da afiliada *<input id="ita-af-nome" required maxlength="140"></label>
+<label>WhatsApp<input id="ita-af-whatsapp" maxlength="35"></label>
+<label>E-mail<input id="ita-af-email" type="email" maxlength="180"></label>
+<label>Instagram / rede social<input id="ita-af-rede" maxlength="180"></label>
+<label>Cupom individual *<select id="ita-af-cupom" required><option value="">Selecione</option><option>ITA01</option><option>ITA02</option><option>ITA03</option><option>ITA04</option><option>ITA05</option><option>ITA06</option><option>ITA07</option></select></label>
+<label>Situação<select id="ita-af-ativo"><option value="true">Ativa</option><option value="false">Inativa</option></select></label>
+</div>
+<label>Observações<textarea id="ita-af-obs" rows="2"></textarea></label>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button type="submit" id="ita-af-save">Salvar no Firebase</button><button type="button" id="ita-af-new">Novo cadastro</button></div>
+</form>
+</div>
+<div class="ita-af-section">
+<h3>Afiliadas cadastradas</h3><label>Pesquisar<input id="ita-af-search" placeholder="Nome, cupom ou WhatsApp"></label>
+<div class="ita-af-scroll"><table><thead><tr><th>Nome</th><th>Cupom</th><th>Contato</th><th>Situação</th><th>Pedidos</th><th>Pagos</th><th>Comissão estimada</th><th>Ações</th></tr></thead><tbody id="ita-af-rows"></tbody></table></div>
+</div>
+<div class="ita-af-section" id="ita-af-history" hidden><h3 id="ita-af-history-title">Pedidos da afiliada</h3><p id="ita-af-history-info"></p><div class="ita-af-scroll"><table><thead><tr><th>Pedido</th><th>Cupom</th><th>Status</th><th>Valor</th><th>Comissão estimada</th></tr></thead><tbody id="ita-af-history-rows"></tbody></table></div></div>
+<p style="color:#c5ddcf">Atenção: comissões são estimativas de 10% sobre o valor do pedido pago; não representam valores liquidados ou transferidos. Frete, descontos e estornos precisam de regra financeira definitiva antes do pagamento automático.</p>
+</section>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id),panel=$('ita-afiliadas-real'),status=$('ita-af-status'),rows=$('ita-af-rows');
+let records=null,orders=null,stops=[],current=null,busy=false;
+const admin=()=>window.firebase&&typeof firebase.auth==='function'&&firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com';
+const val=id=>$(id).value.trim(),norm=v=>String(v??'').trim().toUpperCase(),money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const cupom=o=>norm(o.cupom||o.cupomAfiliada||o.codigoAfiliada||o.afiliadaCupom||o.coupon||o.couponCode||(typeof o.afiliada==='string'?o.afiliada:'')||(o.afiliada&&o.afiliada.cupom)||'');
+const paid=o=>['PAGO','PAGA','PAID','APPROVED','APROVADO','APROVADA','PAGAMENTO APROVADO'].includes(norm(o.statusPagamento||o.status_pagamento||o.pagamentoStatus||o.status||''))||norm(o.pagamento&&o.pagamento.status)==='APPROVED';
+const value=o=>{const v=o.total??o.valorTotal??o.valor??o.totalPedido;const n=Number(v);return Number.isFinite(n)&&n>=0?n:0};
+const rowCell=(tr,v)=>{const td=document.createElement('td');td.textContent=String(v??'—');tr.appendChild(td);return td};
+function message(t){status.textContent=t}
+function reset(){current=null;$('ita-af-form').reset();$('ita-af-form-title').textContent='Cadastrar afiliada';$('ita-af-history').hidden=true;message('Novo cadastro pronto.')}
+function stats(c){if(!orders)return null;const found=orders.filter(d=>cupom(d.data())===norm(c));const ok=found.filter(d=>paid(d.data()));return{all:found,ok,commission:ok.reduce((sum,d)=>sum+value(d.data())*.1,0)}}
+function render(){
+ rows.replaceChildren();$('ita-af-count').textContent=records?records.length:'—';
+ const couponOrders=orders?orders.filter(d=>/^ITA0[1-7]$/.test(cupom(d.data()))):null;
+ const paidOrders=couponOrders?couponOrders.filter(d=>paid(d.data())):null;
+ $('ita-af-orders').textContent=couponOrders?couponOrders.length:'—';
+ $('ita-af-paid').textContent=paidOrders?paidOrders.length:'—';
+ $('ita-af-commission').textContent=paidOrders?money(paidOrders.reduce((sum,d)=>sum+value(d.data())*.1,0)):'—';
+ if(!records)return;
+ const q=val('ita-af-search').toLowerCase(),list=records.filter(d=>{const p=d.data();return [p.nome,p.cupom,p.codigo,p.whatsapp].some(x=>String(x||'').toLowerCase().includes(q))});
+ if(!list.length){const tr=document.createElement('tr');rowCell(tr,records.length?'Nenhum resultado encontrado.':'Nenhuma afiliada cadastrada nesta coleção.').colSpan=8;rows.appendChild(tr);return}
+ for(const d of list){const p=d.data(),c=norm(p.cupom||p.codigo),s=stats(c),tr=document.createElement('tr');
+ rowCell(tr,p.nome||d.id);rowCell(tr,c||'Não informado');rowCell(tr,p.whatsapp||p.email||'—');rowCell(tr,p.ativo===false?'Inativa':'Ativa');rowCell(tr,s?s.all.length:'—');rowCell(tr,s?s.ok.length:'—');rowCell(tr,s?money(s.commission):'—');
+ const actions=rowCell(tr,'');const edit=document.createElement('button');edit.textContent='Editar';edit.type='button';edit.addEventListener('click',()=>editRecord(d));const hist=document.createElement('button');hist.textContent='Pedidos';hist.type='button';hist.style.marginLeft='5px';hist.addEventListener('click',()=>history(d));actions.append(edit,hist);rows.appendChild(tr)
+ }
+}
+function editRecord(d){const p=d.data();current=d.id;$('ita-af-nome').value=p.nome||'';$('ita-af-whatsapp').value=p.whatsapp||'';$('ita-af-email').value=p.email||'';$('ita-af-rede').value=p.redeSocial||p.instagram||'';$('ita-af-cupom').value=norm(p.cupom||p.codigo);$('ita-af-ativo').value=p.ativo===false?'false':'true';$('ita-af-obs').value=p.observacoes||'';$('ita-af-form-title').textContent='Editar afiliada: '+(p.nome||d.id);message('Editando afiliada existente.');panel.scrollTo({top:0,behavior:'smooth'})}
+function history(d){const p=d.data(),s=stats(p.cupom||p.codigo),body=$('ita-af-history-rows');body.replaceChildren();$('ita-af-history').hidden=false;$('ita-af-history-title').textContent='Pedidos: '+(p.nome||d.id);$('ita-af-history-info').textContent=s?s.all.length+' pedido(s) identificados pelo cupom. Apenas os pagos entram na estimativa de comissão.':'Histórico indisponível: leitura de pedidos não autorizada.';
+ if(s)for(const doc of s.all){const o=doc.data(),tr=document.createElement('tr');rowCell(tr,o.numero||doc.id);rowCell(tr,cupom(o));rowCell(tr,o.statusPagamento||o.status||'—');rowCell(tr,money(value(o)));rowCell(tr,paid(o)?money(value(o)*.1):'Não devida');body.appendChild(tr)}
+ $('ita-af-history').scrollIntoView({behavior:'smooth',block:'nearest'})
+}
+function close(){panel.style.display='none';for(const stop of stops){try{stop()}catch(e){}}stops=[]}
+function open(){
+ if(!admin()){message('Acesso restrito ao administrador.');return}
+ close();panel.style.display='block';reset();records=null;orders=null;render();message('Consultando afiliadas e pedidos reais…');
+ try{const db=firebase.firestore();
+ stops.push(db.collection('afiliadas').onSnapshot(s=>{records=s.docs;render();message(records.length+' afiliada(s) carregada(s) da coleção afiliadas.')},e=>{records=null;render();message('Falha na leitura de afiliadas: '+(e.code||e.message))}));
+ stops.push(db.collection('pedidos').onSnapshot(s=>{orders=s.docs;render()},e=>{orders=null;render();message('Histórico de pedidos indisponível: '+(e.code||e.message))}));
+ }catch(e){message('Falha ao conectar: '+e.message)}
+}
+$('ita-af-form').addEventListener('submit',async ev=>{
+ ev.preventDefault();if(busy)return;if(!admin()){message('Login do administrador necessário.');return}
+ const nome=val('ita-af-nome'),c=norm(val('ita-af-cupom'));if(!nome||!/^ITA0[1-7]$/.test(c)){message('Informe nome e cupom válido ITA01–ITA07.');return}
+ if(records===null){message('Não é seguro salvar enquanto a leitura de afiliadas estiver bloqueada: não é possível verificar cupons duplicados.');return}
+ const duplicate=records.find(d=>d.id!==current&&norm(d.data().cupom||d.data().codigo)===c);
+ if(duplicate){message('Cupom '+c+' já está atribuído a '+(duplicate.data().nome||duplicate.id)+'. Edite o cadastro existente.');return}
+ const data={nome,whatsapp:val('ita-af-whatsapp'),email:val('ita-af-email').toLowerCase(),redeSocial:val('ita-af-rede'),cupom:c,ativo:val('ita-af-ativo')==='true',observacoes:val('ita-af-obs'),comissaoPercentual:10,atualizadoEm:firebase.firestore.FieldValue.serverTimestamp()};
+ busy=true;$('ita-af-save').disabled=true;message('Salvando no Firebase…');
+ try{const col=firebase.firestore().collection('afiliadas');if(current){await col.doc(current).update(data);message('Afiliada atualizada com sucesso.')}else{data.criadoEm=firebase.firestore.FieldValue.serverTimestamp();const ref=await col.add(data);current=ref.id;$('ita-af-form-title').textContent='Editar afiliada: '+nome;message('Afiliada cadastrada. ID: '+ref.id)}}
+ catch(e){message('Não foi possível salvar: '+(e.code||e.message)+'. Revisaremos as permissões de afiliadas ao final, junto com as demais regras.')}
+ finally{busy=false;$('ita-af-save').disabled=false}
+});
+$('ita-af-search').addEventListener('input',render);$('ita-af-new').addEventListener('click',reset);$('ita-af-close').addEventListener('click',close);
+document.addEventListener('click',ev=>{const el=ev.target instanceof Element?ev.target.closest('button,[role="tab"]'):null;if(!el||el.closest('#ita-afiliadas-real,#ita-clientes-real,#ita-fornecedores-real,#ita-dashboard-real,#ita-pedidos-real-panel'))return;if((el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()!=='AFILIADAS')return;ev.preventDefault();ev.stopImmediatePropagation();open()},true);
+function wait(n){if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStateChanged(()=>{if(!admin())close()});else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
+})();
+</script>
+
 </body>
 </html>
