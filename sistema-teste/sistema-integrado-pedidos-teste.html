@@ -3041,5 +3041,74 @@ document.addEventListener('click',function(ev){const el=ev.target instanceof Ele
 function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase.auth().onAuthStateChanged(()=>{if(!authorized())hide()})}else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
 })();
 </script>
+
+<!-- ITA DASHBOARD REAL v1: dados consultados do Firebase, sem métricas demonstrativas -->
+<style>
+#ita-dashboard-real{display:none;position:fixed;inset:5vh 2% 2%;z-index:2147483255;overflow:auto;padding:24px;background:#10231f;color:#f5fff9;border:2px solid #2ee59d;border-radius:16px;box-shadow:0 0 0 100vmax #000b;font:15px Arial}
+#ita-dashboard-real button{background:#2ee59d;color:#08271d;border:0;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer}
+#ita-dashboard-real .ita-dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:15px;margin:20px 0}
+#ita-dashboard-real .ita-dashboard-stat{background:#173b30;border:1px solid #376a57;border-radius:12px;padding:20px}
+#ita-dashboard-real .ita-dashboard-stat strong{display:block;color:#2ee59d;font-size:30px;margin:12px 0 6px}
+#ita-dashboard-real .ita-dashboard-stat span{color:#d3e6dc}
+#ita-dashboard-real .ita-dashboard-note{color:#c3dfd2;line-height:1.5}
+@media(max-width:700px){#ita-dashboard-real{inset:2vh 1% 1%;padding:14px}}
+</style>
+<section id="ita-dashboard-real" role="dialog" aria-modal="true" aria-label="Dashboard real ItaEnergyFit">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2>DASHBOARD — DADOS REAIS</h2><button type="button" id="ita-dashboard-close">Fechar</button></div>
+<p class="ita-dashboard-note">Indicadores obtidos diretamente do Firebase. Pedidos pendentes não são considerados vendas confirmadas.</p>
+<p id="ita-dashboard-status" role="status">Aguardando autenticação…</p>
+<div class="ita-dashboard-grid">
+<div class="ita-dashboard-stat"><span>Produtos cadastrados</span><strong id="ita-dashboard-products">—</strong><small>Documentos na coleção produtos</small></div>
+<div class="ita-dashboard-stat"><span>Pedidos recebidos</span><strong id="ita-dashboard-orders">—</strong><small>Documentos na coleção pedidos</small></div>
+<div class="ita-dashboard-stat"><span>Aguardando pagamento</span><strong id="ita-dashboard-pending">—</strong><small>Pedidos com status pendente</small></div>
+<div class="ita-dashboard-stat"><span>Vendas confirmadas</span><strong id="ita-dashboard-paid">—</strong><small>Pedidos marcados como pagos</small></div>
+<div class="ita-dashboard-stat"><span>Valor das vendas confirmadas</span><strong id="ita-dashboard-revenue">—</strong><small>Soma dos valores de pedidos pagos; não é conciliação bancária</small></div>
+</div>
+<p class="ita-dashboard-note">Os valores de vendas confirmadas refletem apenas o status gravado no Firebase, não uma verificação independente no Mercado Pago. A automação de pagamentos ainda está pendente.</p>
+</section>
+<script>
+(function(){
+'use strict';
+const panel=document.getElementById('ita-dashboard-real'),close=document.getElementById('ita-dashboard-close'),status=document.getElementById('ita-dashboard-status');
+const els={products:document.getElementById('ita-dashboard-products'),orders:document.getElementById('ita-dashboard-orders'),pending:document.getElementById('ita-dashboard-pending'),paid:document.getElementById('ita-dashboard-paid'),revenue:document.getElementById('ita-dashboard-revenue')};
+let stops=[],state={products:null,orders:null},errors={};
+const authorized=()=>window.firebase&&typeof firebase.auth==='function'&&firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com';
+const fmt=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+function refresh(){
+ els.products.textContent=state.products===null?'—':String(state.products);
+ if(state.orders===null){for(const k of ['orders','pending','paid','revenue'])els[k].textContent='—'}
+ else{
+  const docs=state.orders;
+  const norm=p=>String(p.statusPagamento||p.status||'').trim().toLowerCase();
+  const pending=docs.filter(p=>/aguardando|pendente|pending|waiting/.test(norm(p)));
+  const paid=docs.filter(p=>/^(pago|paid|approved|aprovado)$/.test(norm(p)));
+  const total=paid.reduce((sum,p)=>{const n=Number(p.total??p.valorTotal??p.valor);return sum+(Number.isFinite(n)?n:0)},0);
+  els.orders.textContent=String(docs.length);els.pending.textContent=String(pending.length);els.paid.textContent=String(paid.length);els.revenue.textContent=fmt(total);
+ }
+ const loaded=Number(state.products!==null)+Number(state.orders!==null);
+ status.textContent=Object.keys(errors).length?'Erro na consulta: '+Object.entries(errors).map(([k,v])=>k+' ('+v+')').join('; '):loaded===2?'Dados atualizados em tempo real.':'Consultando Firebase…';
+}
+function hide(){panel.style.display='none';for(const stop of stops){try{stop()}catch(e){}}stops=[]}
+function open(){
+ if(!authorized()){status.textContent='Acesso restrito ao administrador.';return}
+ hide();panel.style.display='block';state={products:null,orders:null};errors={};refresh();
+ try{
+  const db=firebase.firestore();
+  stops.push(db.collection('produtos').onSnapshot(s=>{state.products=s.size;delete errors.produtos;refresh()},e=>{errors.produtos=e.code||e.message;refresh()}));
+  stops.push(db.collection('pedidos').onSnapshot(s=>{state.orders=s.docs.map(d=>d.data());delete errors.pedidos;refresh()},e=>{errors.pedidos=e.code||e.message;refresh()}));
+ }catch(e){status.textContent='Falha ao iniciar consulta: '+e.message}
+}
+close.addEventListener('click',hide);
+function label(el){return(el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()}
+document.addEventListener('click',function(ev){
+ const el=ev.target instanceof Element?ev.target.closest('button,[role="tab"]'):null;
+ if(!el||el.closest('#ita-dashboard-real,#ita-pedidos-real-panel,#ita-stock-panel,#ita-integrado-panel'))return;
+ if(label(el)!=='DASHBOARD')return;
+ ev.preventDefault();ev.stopImmediatePropagation();open();
+},true);
+function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase.auth().onAuthStateChanged(()=>{if(!authorized())hide()})}else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
+})();
+</script>
+
 </body>
 </html>
