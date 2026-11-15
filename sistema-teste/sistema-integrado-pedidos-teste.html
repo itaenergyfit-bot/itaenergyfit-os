@@ -3110,5 +3110,106 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase
 })();
 </script>
 
+
+<!-- ITA FORNECEDORES REAIS v1: Firestore CRUD sem exclusão -->
+<style>
+#ita-fornecedores-real{display:none;position:fixed;inset:4vh 2% 2%;z-index:2147483260;overflow:auto;background:#10231f;color:#f5fff9;border:2px solid #2ee59d;border-radius:16px;padding:22px;box-shadow:0 0 0 100vmax #000b;font:14px Arial}
+#ita-fornecedores-real button{background:#2ee59d;color:#09251b;border:0;border-radius:8px;padding:10px 15px;font-weight:800;cursor:pointer}
+#ita-fornecedores-real button:disabled{opacity:.5;cursor:wait}
+#ita-fornecedores-real .ita-forn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:13px;margin:14px 0}
+#ita-fornecedores-real label{display:flex;flex-direction:column;gap:5px;font-weight:bold}
+#ita-fornecedores-real input,#ita-fornecedores-real textarea,#ita-fornecedores-real select{background:#fff;color:#10231f;border:1px solid #8db6a5;border-radius:8px;padding:10px;box-sizing:border-box;width:100%;font:14px Arial}
+#ita-fornecedores-real table{width:100%;border-collapse:collapse;min-width:700px}
+#ita-fornecedores-real th,#ita-fornecedores-real td{text-align:left;padding:10px;border-bottom:1px solid #376a57;vertical-align:top}
+#ita-fornecedores-real th{color:#2ee59d}
+#ita-fornecedores-real .ita-forn-scroll{overflow-x:auto}
+#ita-fornecedores-real .ita-forn-section{border:1px solid #376a57;background:#173b30;border-radius:12px;padding:15px;margin:16px 0}
+#ita-fornecedores-real #ita-forn-status{white-space:pre-wrap;color:#c8f5df}
+@media(max-width:700px){#ita-fornecedores-real{inset:2vh 1% 1%;padding:12px}}
+</style>
+<section id="ita-fornecedores-real" role="dialog" aria-modal="true" aria-label="Fornecedores reais Firebase">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2>FORNECEDORES — FIREBASE</h2><button type="button" id="ita-forn-close">Fechar</button></div>
+<p>Cadastros reais da coleção <b>fornecedores</b>. Não são exibidos fornecedores ilustrativos. Não há exclusão nesta versão.</p>
+<p id="ita-forn-status" role="status">Aguardando login…</p>
+<div class="ita-forn-section">
+<h3 id="ita-forn-form-title">Cadastrar fornecedor</h3>
+<form id="ita-forn-form">
+<div class="ita-forn-grid">
+<label>Empresa / Nome *<input id="ita-forn-nome" maxlength="140" required autocomplete="organization"></label>
+<label>Contato responsável<input id="ita-forn-contato" maxlength="120"></label>
+<label>WhatsApp<input id="ita-forn-whatsapp" maxlength="35" inputmode="tel"></label>
+<label>E-mail<input id="ita-forn-email" maxlength="180" type="email"></label>
+<label>Cidade<input id="ita-forn-cidade" maxlength="120"></label>
+<label>Estado (UF)<input id="ita-forn-uf" maxlength="2" placeholder="CE"></label>
+<label>CNPJ (opcional)<input id="ita-forn-cnpj" maxlength="24"></label>
+<label>Situação<select id="ita-forn-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></label>
+</div>
+<label>Produtos fornecidos (separados por vírgula)<textarea id="ita-forn-produtos" rows="2"></textarea></label>
+<label>Observações<textarea id="ita-forn-obs" rows="2"></textarea></label>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button type="submit" id="ita-forn-save">Salvar no Firebase</button><button type="button" id="ita-forn-new">Novo cadastro</button></div>
+</form>
+</div>
+<div class="ita-forn-section"><h3>Fornecedores cadastrados <span id="ita-forn-count"></span></h3>
+<div class="ita-forn-scroll"><table><thead><tr><th>Empresa</th><th>Contato</th><th>Localização</th><th>Produtos</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="ita-forn-rows"></tbody></table></div>
+</div>
+</section>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id),panel=$('ita-fornecedores-real'),status=$('ita-forn-status'),form=$('ita-forn-form'),rows=$('ita-forn-rows'),save=$('ita-forn-save');
+const fields={nome:'ita-forn-nome',contato:'ita-forn-contato',whatsapp:'ita-forn-whatsapp',email:'ita-forn-email',cidade:'ita-forn-cidade',uf:'ita-forn-uf',cnpj:'ita-forn-cnpj',produtos:'ita-forn-produtos',observacoes:'ita-forn-obs'};
+let current=null,stop=null,docs=[],busy=false;
+const authorized=()=>window.firebase&&typeof firebase.auth==='function'&&firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com';
+function message(v){status.textContent=v}
+function get(k){return $(fields[k]).value.trim()}
+function reset(){current=null;form.reset();$('ita-forn-form-title').textContent='Cadastrar fornecedor';$('ita-forn-ativo').value='true';message('Novo cadastro pronto. Preencha os campos e salve.')}
+function value(p,k){return p[k]===undefined||p[k]===null?'':String(p[k])}
+function edit(d){
+ const p=d.data();current=d.id;
+ for(const k of Object.keys(fields))$(fields[k]).value=k==='produtos'?(Array.isArray(p.produtos)?p.produtos.join(', '):value(p,k)):value(p,k);
+ $('ita-forn-ativo').value=p.ativo===false?'false':'true';
+ $('ita-forn-form-title').textContent='Editar fornecedor: '+(p.nome||d.id);
+ message('Editando fornecedor existente. As alterações serão gravadas somente ao clicar em Salvar.');
+ panel.scrollTo({top:0,behavior:'smooth'});
+}
+function cell(tr,v){const td=document.createElement('td');td.textContent=String(v??'—');tr.appendChild(td);return td}
+function render(){
+ rows.replaceChildren();$('ita-forn-count').textContent='('+docs.length+')';
+ if(!docs.length){const tr=document.createElement('tr');cell(tr,'Nenhum fornecedor encontrado na coleção.').colSpan=6;rows.appendChild(tr);return}
+ for(const d of docs){const p=d.data(),tr=document.createElement('tr');cell(tr,p.nome||p.empresa||d.id);cell(tr,[p.contato,p.whatsapp].filter(Boolean).join(' · ')||'—');cell(tr,[p.cidade,p.uf].filter(Boolean).join(' / ')||'—');cell(tr,Array.isArray(p.produtos)?p.produtos.join(', '):p.produtos||'—');cell(tr,p.ativo===false?'Inativo':'Ativo');const action=cell(tr,'');const b=document.createElement('button');b.type='button';b.textContent='Editar';b.addEventListener('click',()=>edit(d));action.appendChild(b);rows.appendChild(tr)}
+}
+function hide(){panel.style.display='none';if(stop){stop();stop=null}current=null}
+function open(){
+ if(!authorized()){message('Acesso restrito ao administrador.');return}
+ panel.style.display='block';reset();docs=[];render();message('Consultando fornecedores no Firebase…');
+ if(stop)stop();
+ try{stop=firebase.firestore().collection('fornecedores').onSnapshot(s=>{docs=s.docs.slice().sort((a,b)=>String(a.data().nome||a.data().empresa||'').localeCompare(String(b.data().nome||b.data().empresa||''),'pt-BR'));render();message(docs.length+' fornecedor(es) carregado(s) do Firebase.')},e=>message('Não foi possível consultar fornecedores: '+(e.code||e.message)))}catch(e){message('Erro de conexão: '+e.message)}
+}
+form.addEventListener('submit',async ev=>{
+ ev.preventDefault();if(busy)return;
+ if(!authorized()){message('Login do administrador necessário.');return}
+ if(!get('nome')){message('Informe o nome da empresa.');return}
+ const uf=get('uf').toUpperCase();if(uf&&!/^[A-Z]{2}$/.test(uf)){message('Informe a UF com duas letras, por exemplo CE.');return}
+ const data={nome:get('nome'),contato:get('contato'),whatsapp:get('whatsapp'),email:get('email'),cidade:get('cidade'),uf,cnpj:get('cnpj'),produtos:get('produtos').split(',').map(x=>x.trim()).filter(Boolean),observacoes:get('observacoes'),ativo:$('ita-forn-ativo').value==='true',atualizadoEm:firebase.firestore.FieldValue.serverTimestamp()};
+ busy=true;save.disabled=true;message('Salvando no Firebase…');
+ try{
+  const collection=firebase.firestore().collection('fornecedores');
+  if(current){await collection.doc(current).update(data);message('Fornecedor atualizado com sucesso.')}
+  else{data.criadoEm=firebase.firestore.FieldValue.serverTimestamp();const ref=await collection.add(data);current=ref.id;$('ita-forn-form-title').textContent='Editar fornecedor: '+data.nome;message('Fornecedor cadastrado com sucesso. ID: '+ref.id)}
+ }catch(e){message('Não foi possível salvar: '+(e.code||e.message)+'. Verifique as regras de acesso da coleção fornecedores.')}
+ finally{busy=false;save.disabled=false}
+});
+$('ita-forn-new').addEventListener('click',reset);$('ita-forn-close').addEventListener('click',hide);
+function label(el){return(el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()}
+document.addEventListener('click',ev=>{
+ const el=ev.target instanceof Element?ev.target.closest('button,[role="tab"]'):null;
+ if(!el||el.closest('#ita-fornecedores-real,#ita-dashboard-real,#ita-pedidos-real-panel,#ita-stock-panel,#ita-integrado-panel'))return;
+ if(label(el)!=='FORNECEDORES')return;
+ ev.preventDefault();ev.stopImmediatePropagation();open();
+},true);
+function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase.auth().onAuthStateChanged(()=>{if(!authorized())hide()})}else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
+})();
+</script>
+
 </body>
 </html>
