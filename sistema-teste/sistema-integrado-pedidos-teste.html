@@ -3211,5 +3211,122 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase
 })();
 </script>
 
+
+<!-- ITA CLIENTES REAIS v1: cadastro, histórico e prevenção de duplicatas -->
+<style>
+#ita-clientes-real{display:none;position:fixed;inset:4vh 2% 2%;z-index:2147483265;overflow:auto;background:#10231f;color:#f5fff9;border:2px solid #2ee59d;border-radius:16px;padding:22px;box-shadow:0 0 0 100vmax #000b;font:14px Arial}
+#ita-clientes-real button{background:#2ee59d;color:#09251b;border:0;border-radius:8px;padding:10px 15px;font-weight:800;cursor:pointer}
+#ita-clientes-real button:disabled{opacity:.5;cursor:wait}
+#ita-clientes-real .ita-cli-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:13px;margin:14px 0}
+#ita-clientes-real label{display:flex;flex-direction:column;gap:5px;font-weight:bold}
+#ita-clientes-real input,#ita-clientes-real textarea{background:#fff;color:#10231f;border:1px solid #8db6a5;border-radius:8px;padding:10px;box-sizing:border-box;width:100%;font:14px Arial}
+#ita-clientes-real table{width:100%;border-collapse:collapse;min-width:650px}
+#ita-clientes-real th,#ita-clientes-real td{text-align:left;padding:10px;border-bottom:1px solid #376a57;vertical-align:top}
+#ita-clientes-real th{color:#2ee59d}
+#ita-clientes-real .ita-cli-scroll{overflow-x:auto}
+#ita-clientes-real .ita-cli-section{border:1px solid #376a57;background:#173b30;border-radius:12px;padding:15px;margin:16px 0}
+#ita-clientes-real #ita-cli-status{white-space:pre-wrap;color:#c8f5df}
+@media(max-width:700px){#ita-clientes-real{inset:2vh 1% 1%;padding:12px}}
+</style>
+<section id="ita-clientes-real" role="dialog" aria-modal="true" aria-label="Clientes reais Firebase">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2>CLIENTES — FIREBASE</h2><button type="button" id="ita-cli-close">Fechar</button></div>
+<p>Clientes cadastrados na coleção <b>clientes</b> e histórico de pedidos da coleção <b>pedidos</b>. Não são exibidos clientes ilustrativos. Não há exclusão nesta versão.</p>
+<p id="ita-cli-status" role="status">Aguardando login…</p>
+<div class="ita-cli-section">
+<h3 id="ita-cli-form-title">Cadastrar cliente</h3>
+<form id="ita-cli-form">
+<div class="ita-cli-grid">
+<label>Nome completo *<input id="ita-cli-nome" maxlength="140" required autocomplete="name"></label>
+<label>WhatsApp<input id="ita-cli-whatsapp" maxlength="35" inputmode="tel"></label>
+<label>E-mail<input id="ita-cli-email" maxlength="180" type="email"></label>
+<label>CEP<input id="ita-cli-cep" maxlength="12" inputmode="numeric"></label>
+<label>Rua e número<input id="ita-cli-endereco" maxlength="240"></label>
+<label>Bairro<input id="ita-cli-bairro" maxlength="120"></label>
+<label>Cidade<input id="ita-cli-cidade" maxlength="120"></label>
+<label>Estado (UF)<input id="ita-cli-uf" maxlength="2" placeholder="SC"></label>
+</div>
+<label>Observações<textarea id="ita-cli-obs" rows="2"></textarea></label>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button type="submit" id="ita-cli-save">Salvar no Firebase</button><button type="button" id="ita-cli-new">Novo cadastro</button></div>
+</form>
+</div>
+<div class="ita-cli-section"><h3>Clientes cadastrados <span id="ita-cli-count"></span></h3>
+<label>Pesquisar cliente<input id="ita-cli-search" placeholder="Nome, WhatsApp ou e-mail"></label>
+<div class="ita-cli-scroll"><table><thead><tr><th>Nome</th><th>WhatsApp</th><th>E-mail</th><th>Cidade</th><th>Pedidos</th><th>Ações</th></tr></thead><tbody id="ita-cli-rows"></tbody></table></div>
+</div>
+<div class="ita-cli-section" id="ita-cli-history" hidden><h3 id="ita-cli-history-title">Histórico de pedidos</h3><p id="ita-cli-history-info"></p><div class="ita-cli-scroll"><table><thead><tr><th>Pedido</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead><tbody id="ita-cli-history-rows"></tbody></table></div></div>
+</section>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id),panel=$('ita-clientes-real'),status=$('ita-cli-status'),form=$('ita-cli-form'),rows=$('ita-cli-rows'),save=$('ita-cli-save');
+const fields={nome:'ita-cli-nome',whatsapp:'ita-cli-whatsapp',email:'ita-cli-email',cep:'ita-cli-cep',endereco:'ita-cli-endereco',bairro:'ita-cli-bairro',cidade:'ita-cli-cidade',uf:'ita-cli-uf',observacoes:'ita-cli-obs'};
+let current=null,stops=[],docs=[],orders=null,busy=false;
+const authorized=()=>window.firebase&&typeof firebase.auth==='function'&&firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com';
+const get=k=>$(fields[k]).value.trim(),digits=v=>String(v||'').replace(/\D/g,''),email=v=>String(v||'').trim().toLowerCase();
+const first=(...v)=>v.find(x=>x!==undefined&&x!==null&&x!=='');
+function message(v){status.textContent=v}
+function reset(){current=null;form.reset();$('ita-cli-form-title').textContent='Cadastrar cliente';$('ita-cli-history').hidden=true;message('Novo cadastro pronto.')}
+function customer(p){return p.cliente&&typeof p.cliente==='object'?p.cliente:{}}
+function matches(p,record){const c=customer(p),pe=email(first(c.email,p.email,p.emailCliente,'')),pw=digits(first(c.whatsapp,c.telefone,p.whatsapp,p.telefone,''));const ce=email(record.email),cw=digits(record.whatsapp);return !!((ce&&pe===ce)||(cw&&pw===cw))}
+function historyFor(p){return orders===null?null:orders.filter(o=>matches(o.data(),p))}
+function cell(tr,v){const td=document.createElement('td');td.textContent=String(v??'—');tr.appendChild(td);return td}
+function when(v){if(!v)return '—';try{if(v.toDate)return v.toDate().toLocaleString('pt-BR');if(typeof v==='number')return new Date(v).toLocaleString('pt-BR');return new Date(v).toLocaleString('pt-BR')}catch(e){return '—'}}
+function amount(v){const n=Number(v);return v!==undefined&&v!==null&&v!==''&&Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'—'}
+function showHistory(d){
+ const p=d.data(),items=historyFor(p),section=$('ita-cli-history'),body=$('ita-cli-history-rows');section.hidden=false;body.replaceChildren();
+ $('ita-cli-history-title').textContent='Histórico: '+(p.nome||d.id);
+ $('ita-cli-history-info').textContent=items===null?'Não foi possível consultar a coleção pedidos.':items.length+' pedido(s) associados por e-mail ou WhatsApp. Esta associação é indicativa, não uma identidade verificada.';
+ if(items)for(const doc of items){const o=doc.data(),tr=document.createElement('tr');cell(tr,o.numero||doc.id);cell(tr,amount(first(o.total,o.valorTotal,o.valor)));cell(tr,first(o.statusPagamento,o.status,'—'));cell(tr,when(first(o.criadoEm,o.createdAt,o.criado,o.data)));body.appendChild(tr)}
+ section.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function edit(d){const p=d.data();current=d.id;for(const k of Object.keys(fields))$(fields[k]).value=String(p[k]??'');$('ita-cli-form-title').textContent='Editar cliente: '+(p.nome||d.id);message('Editando cadastro existente. Clique em Salvar para gravar alterações.');panel.scrollTo({top:0,behavior:'smooth'})}
+function render(){
+ rows.replaceChildren();$('ita-cli-count').textContent='('+docs.length+')';
+ const term=$('ita-cli-search').value.toLowerCase().trim();
+ const visible=docs.filter(d=>{const p=d.data();return !term||[p.nome,p.whatsapp,p.email].some(x=>String(x||'').toLowerCase().includes(term))});
+ if(!visible.length){const tr=document.createElement('tr');cell(tr,docs.length?'Nenhum cliente corresponde à busca.':'Nenhum cliente cadastrado nesta coleção.').colSpan=6;rows.appendChild(tr);return}
+ for(const d of visible){const p=d.data(),tr=document.createElement('tr');cell(tr,p.nome||d.id);cell(tr,p.whatsapp||'—');cell(tr,p.email||'—');cell(tr,[p.cidade,p.uf].filter(Boolean).join(' / ')||'—');const h=historyFor(p);cell(tr,h===null?'—':h.length);const actions=cell(tr,'');const editBtn=document.createElement('button');editBtn.type='button';editBtn.textContent='Editar';editBtn.addEventListener('click',()=>edit(d));const histBtn=document.createElement('button');histBtn.type='button';histBtn.textContent='Pedidos';histBtn.style.marginLeft='6px';histBtn.addEventListener('click',()=>showHistory(d));actions.append(editBtn,histBtn);rows.appendChild(tr)}
+}
+function hide(){panel.style.display='none';for(const stop of stops){try{stop()}catch(e){}}stops=[];current=null}
+function open(){
+ if(!authorized()){message('Acesso restrito ao administrador.');return}
+ hide();panel.style.display='block';reset();docs=[];orders=null;render();message('Consultando clientes e pedidos reais…');
+ try{
+ const db=firebase.firestore();
+ stops.push(db.collection('clientes').onSnapshot(s=>{docs=s.docs.slice().sort((a,b)=>String(a.data().nome||'').localeCompare(String(b.data().nome||''),'pt-BR'));render();message(docs.length+' cliente(s) carregado(s) da coleção clientes.')},e=>message('Falha na leitura de clientes: '+(e.code||e.message))));
+ stops.push(db.collection('pedidos').onSnapshot(s=>{orders=s.docs;render()},e=>{orders=null;render();message('Clientes carregados, mas histórico indisponível: '+(e.code||e.message))}));
+ }catch(e){message('Falha na consulta: '+e.message)}
+}
+form.addEventListener('submit',async ev=>{
+ ev.preventDefault();if(busy)return;
+ if(!authorized()){message('Login de administrador necessário.');return}
+ if(!get('nome')){message('Informe o nome do cliente.');return}
+ const uf=get('uf').toUpperCase();if(uf&&!/^[A-Z]{2}$/.test(uf)){message('Informe a UF com duas letras.');return}
+ const em=email(get('email')),wa=digits(get('whatsapp'));
+ if(!em&&!wa){message('Informe pelo menos WhatsApp ou e-mail para identificar possíveis cadastros duplicados.');return}
+ const dup=docs.find(d=>d.id!==current&&((em&&email(d.data().email)===em)||(wa&&digits(d.data().whatsapp)===wa)));
+ if(dup){message('Possível cadastro duplicado: '+(dup.data().nome||dup.id)+'. Use o botão Editar desse cliente em vez de criar outro.');return}
+ const data={};for(const k of Object.keys(fields))data[k]=get(k);
+ data.email=em;data.uf=uf;data.atualizadoEm=firebase.firestore.FieldValue.serverTimestamp();
+ busy=true;save.disabled=true;message('Salvando cliente no Firebase…');
+ try{
+ const collection=firebase.firestore().collection('clientes');
+ if(current){await collection.doc(current).update(data);message('Cliente atualizado com sucesso.')}
+ else{data.criadoEm=firebase.firestore.FieldValue.serverTimestamp();const ref=await collection.add(data);current=ref.id;$('ita-cli-form-title').textContent='Editar cliente: '+data.nome;message('Cliente cadastrado com sucesso. ID: '+ref.id)}
+ }catch(e){message('Não foi possível salvar: '+(e.code||e.message)+'. As regras da coleção clientes serão revisadas ao final do desenvolvimento.')}
+ finally{busy=false;save.disabled=false}
+});
+$('ita-cli-search').addEventListener('input',render);$('ita-cli-new').addEventListener('click',reset);$('ita-cli-close').addEventListener('click',hide);
+function label(el){return(el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()}
+document.addEventListener('click',ev=>{
+ const el=ev.target instanceof Element?ev.target.closest('button,[role="tab"]'):null;
+ if(!el||el.closest('#ita-clientes-real,#ita-fornecedores-real,#ita-dashboard-real,#ita-pedidos-real-panel,#ita-stock-panel,#ita-integrado-panel'))return;
+ if(label(el)!=='CLIENTES')return;
+ ev.preventDefault();ev.stopImmediatePropagation();open();
+},true);
+function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase.auth().onAuthStateChanged(()=>{if(!authorized())hide()})}else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
+})();
+</script>
+
 </body>
 </html>
