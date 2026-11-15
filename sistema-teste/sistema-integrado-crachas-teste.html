@@ -3441,6 +3441,14 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function')firebase.
 <!-- ITA CRACHAS FIREBASE: teste isolado; nao altera abas oficiais -->
 <style>
 /* Visual premium dos dez crachás: frente e verso separados, sem dados fictícios */
+/* Cada crachá mostra uma única face por vez */
+#ita-crachas-real .card .back{display:none;margin-top:0;min-height:340px}
+#ita-crachas-real .card.show-back .badgefront{display:none}
+#ita-crachas-real .card.show-back .back{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:7px}
+#ita-crachas-real .card .flip-button{width:100%;margin-top:12px;background:#17382f;color:#b8ffdb;border:1px solid #2ee59d}
+#ita-crachas-real .card .back .qr{margin:6px auto}
+@media print{#ita-crachas-real .card .flip-button{display:none!important}}
+
 #ita-crachas-real .cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));align-items:start;gap:24px}
 #ita-crachas-real .card{background:#142923;border:1px solid #396c56;border-radius:17px;padding:12px;box-shadow:0 12px 30px #0005}
 #ita-crachas-real .badgefront{min-height:340px;background:linear-gradient(180deg,#a5ed17 0 29%,#fff 29%);border-radius:13px;display:flex;flex-direction:column;align-items:center;padding:34px 12px 18px;color:#142820}
@@ -3523,13 +3531,13 @@ function render(){
  back.append(node('p','Instagram: '+(p.redeSocial||p.instagram||'Não informado')),node('p','WhatsApp: '+(p.whatsapp||'Não informado')));
  const list=orders&&c?orders.filter(o=>coupon(o.data())===c):null,ok=list?list.filter(o=>paid(o.data())):null;
  const summary=node('p',list?'Pedidos: '+list.length+' | Pagos: '+ok.length+' | Comissão estimada (10%): '+money(ok.reduce((sum,o)=>sum+value(o.data())*.1,0)):'Pedidos e comissões: aguardando consulta');
- const actions=node('div',null,'actions');actions.appendChild(button('Editar dados',()=>edit(d)));card.append(front,back,summary,actions);cards.appendChild(card);
+ const actions=node('div',null,'actions');actions.appendChild(button('Editar dados',()=>edit(d)));const flip=button('Ver verso',()=>{const showing=card.classList.toggle('show-back');flip.textContent=showing?'Ver frente':'Ver verso';flip.setAttribute('aria-pressed',String(showing))});flip.className='flip-button';flip.setAttribute('aria-pressed','false');card.append(front,back,flip,summary,actions);cards.appendChild(card);
  });
  for(let n=affiliates.length;n<10;n++){
  const card=node('article',null,'card'),front=node('div',null,'badgefront'),back=node('div',null,'back');
  front.append(node('div','👤','empty-avatar'),node('h3','AGUARDANDO CADASTRO'),node('p','AFILIADA'),node('h2','VAGA '+String(n+1).padStart(2,'0')));
  back.append(node('strong','VERSO • QR DA LOJA'),node('p','O QR Code será gerado automaticamente após o cadastro da afiliada no Firebase.'),node('p','Instagram: aguardando cadastro'),node('p','WhatsApp: aguardando cadastro'));
- card.append(front,back,node('p','Sem vendas ou comissões: vaga não cadastrada.'));cards.appendChild(card);
+ const flip=button('Ver verso',()=>{const showing=card.classList.toggle('show-back');flip.textContent=showing?'Ver frente':'Ver verso';flip.setAttribute('aria-pressed',String(showing))});flip.className='flip-button';flip.setAttribute('aria-pressed','false');card.append(front,back,flip,node('p','Sem vendas ou comissões: vaga não cadastrada.'));cards.appendChild(card);
  }
 }
 function edit(d){if(!admin())return;editing=d.id;const p=d.data();$('ita-cr-name').value=p.nome||'';$('ita-cr-whatsapp').value=p.whatsapp||'';$('ita-cr-social').value=p.redeSocial||p.instagram||'';$('ita-cr-photo').value='';$('ita-cr-editor-title').textContent='Editar crachá: '+(p.nome||d.id);$('ita-cr-editor').hidden=false;$('ita-cr-editor').scrollIntoView({block:'nearest',behavior:'smooth'})}
