@@ -3564,7 +3564,7 @@ document.addEventListener('click',ev=>{const el=ev.target instanceof Element?ev.
 function wait(n){if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStateChanged(()=>{if(!admin())close()});else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
 })();
 </script>
-<!-- ITA FRETE TESTE v1: cadastro local sem alteração de Firestore -->
+<!-- ITA FRETE FIRESTORE v2: leitura e escrita condicionadas às regras Firebase -->
 <style>
 #ita-frete-panel{display:none;position:fixed;inset:4vh 2% 2%;z-index:2147483290;overflow:auto;background:#10231f;color:#effff7;border:2px solid #2ee59d;border-radius:16px;padding:20px;box-shadow:0 0 0 100vmax #000b;font:14px Arial,sans-serif}
 #ita-frete-panel *{box-sizing:border-box}#ita-frete-panel h2{font-size:24px;margin:0 0 12px}#ita-frete-panel h3{font-size:18px;margin:0 0 12px}
@@ -3578,7 +3578,7 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function')firebase.
 </style>
 <section id="ita-frete-panel" aria-label="Frete em teste">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>🚚 FRETE — ITAENERGYFIT</h2><button id="ita-frete-close" class="secondary">Fechar</button></div>
-<p class="hint">Ambiente de teste. O cadastro abaixo fica somente neste navegador e ainda não é compartilhado com Firebase ou checkout.</p>
+<p class="hint">Ambiente de teste. Os cadastros são consultados na coleção motoboys do Firebase. O checkout ainda não utiliza estes dados.</p>
 <div class="ita-f-grid">
 <div class="ita-f-card"><h3>📦 SuperFrete</h3><p class="hint">Integração existente: ItaEnergyFit utiliza um Worker de frete da Cloudflare. A conexão e a cotação serão verificadas antes de ativar operações nesta aba.</p><p><strong>Status:</strong> configuração pendente de validação</p><button id="ita-frete-super" class="secondary">Ver orientações</button><p id="ita-frete-super-msg" class="hint" hidden>Para cotações reais, precisamos conferir a URL do Worker, CEP de origem, serviços e permissões, sem colocar tokens no HTML.</p></div>
 <div class="ita-f-card"><h3>🛵 Entregas locais</h3><form id="ita-frete-form">
@@ -3587,22 +3587,32 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function')firebase.
 <label>Bairros atendidos<input id="ita-frete-bairros" maxlength="180" placeholder="Centro, Bairro Novo"></label>
 <label>Taxa de entrega (R$)<input id="ita-frete-taxa" type="number" min="0" max="9999" step="0.01" required placeholder="10,00"></label>
 <label>Situação<select id="ita-frete-ativo"><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option></select></label>
-<button type="submit">Salvar motoboy (teste)</button><button type="button" id="ita-frete-reset" class="secondary">Limpar</button>
+<button type="submit">Salvar motoboy no Firebase</button><button type="button" id="ita-frete-reset" class="secondary">Limpar</button>
 </form></div></div>
-<div class="ita-f-card"><h3>Motoboys cadastrados neste navegador</h3><div style="overflow:auto"><table><thead><tr><th>Nome</th><th>WhatsApp</th><th>Bairros</th><th>Taxa</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="ita-frete-list"></tbody></table></div><p id="ita-frete-message" class="hint" role="status"></p></div>
+<div class="ita-f-card"><h3>Motoboys cadastrados no Firebase</h3><div style="overflow:auto"><table><thead><tr><th>Nome</th><th>WhatsApp</th><th>Bairros</th><th>Taxa</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="ita-frete-list"></tbody></table></div><p id="ita-frete-message" class="hint" role="status"></p></div>
 </section>
 <script>
 (function(){'use strict';
-const $=id=>document.getElementById(id),panel=$('ita-frete-panel'),key='itaenergyfit_frete_motoboys_teste_v1';
-let rows=[],edit=-1;try{const parsed=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(parsed))rows=parsed}catch(e){}
-function safe(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function render(){const body=$('ita-frete-list');body.innerHTML=rows.map((r,i)=>'<tr><td>'+safe(r.nome)+'</td><td>'+safe(r.tel)+'</td><td>'+safe(r.bairros)+'</td><td>R$ '+Number(r.taxa).toFixed(2).replace('.',',')+'</td><td>'+safe(r.ativo)+'</td><td><button type="button" data-edit="'+i+'">Editar</button><button type="button" class="secondary" data-remove="'+i+'">Excluir</button></td></tr>').join('')||'<tr><td colspan="6">Nenhum motoboy cadastrado neste navegador.</td></tr>'}
-function save(){try{localStorage.setItem(key,JSON.stringify(rows));return true}catch(e){$('ita-frete-message').textContent='Não foi possível salvar neste navegador: '+e.message;return false}}
-function reset(){$('ita-frete-form').reset();edit=-1}
-$('ita-frete-form').addEventListener('submit',e=>{e.preventDefault();const taxa=Number($('ita-frete-taxa').value);if(!Number.isFinite(taxa)||taxa<0)return;const r={nome:$('ita-frete-nome').value.trim(),tel:$('ita-frete-tel').value.trim(),bairros:$('ita-frete-bairros').value.trim(),taxa,ativo:$('ita-frete-ativo').value};if(!r.nome)return;if(edit<0)rows.push(r);else rows[edit]=r;if(save()){$('ita-frete-message').textContent='Cadastro de teste salvo apenas neste navegador.';reset();render()}});
-$('ita-frete-list').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=Number(b.dataset.edit??b.dataset.remove);if(!Number.isInteger(i)||!rows[i])return;if(b.hasAttribute('data-remove')){if(!confirm('Excluir este cadastro de teste?'))return;rows.splice(i,1);save();render();reset()}else{const r=rows[i];edit=i;$('ita-frete-nome').value=r.nome;$('ita-frete-tel').value=r.tel;$('ita-frete-bairros').value=r.bairros;$('ita-frete-taxa').value=r.taxa;$('ita-frete-ativo').value=r.ativo;$('ita-frete-form').scrollIntoView({behavior:'smooth'})}});
-$('ita-frete-reset').onclick=reset;$('ita-frete-close').onclick=()=>panel.style.display='none';$('ita-frete-super').onclick=()=>$('ita-frete-super-msg').hidden=!$('ita-frete-super-msg').hidden;
-document.addEventListener('click',e=>{const b=e.target.closest('button,[role="tab"]');if(!b||b.closest('#ita-frete-panel'))return;if((b.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()!=='FRETE')return;e.preventDefault();e.stopImmediatePropagation();panel.style.display='block';render()},true);
+const $=id=>document.getElementById(id),panel=$('ita-frete-panel');
+let rows=[],edit=null,stop=null,busy=false,ready=false;
+function admin(){try{const u=window.firebase&&firebase.auth().currentUser;return !!u&&u.email&&u.email.toLowerCase()==='itaenergyfit@gmail.com'}catch(e){return false}}
+function msg(t){$('ita-frete-message').textContent=t}
+function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){const body=$('ita-frete-list');body.innerHTML=rows.map((r,i)=>'<tr><td>'+safe(r.nome)+'</td><td>'+safe(r.tel)+'</td><td>'+safe(r.bairros)+'</td><td>R$ '+Number(r.taxa||0).toFixed(2).replace('.',',')+'</td><td>'+safe(r.ativo)+'</td><td><button type="button" data-edit="'+i+'">Editar</button><button type="button" class="secondary" data-remove="'+i+'">Desativar</button></td></tr>').join('')||'<tr><td colspan="6">Nenhum motoboy retornado pelo Firebase.</td></tr>'}
+function reset(){$('ita-frete-form').reset();edit=null}
+function lock(on){busy=on;for(const b of $('ita-frete-form').querySelectorAll('button,input,select'))b.disabled=on}
+function close(){panel.style.display='none';if(stop){stop();stop=null}ready=false;rows=[];render();reset()}
+function open(){if(!admin()){msg('Acesso restrito ao administrador autenticado.');return}panel.style.display='block';if(stop)stop();ready=false;rows=[];render();msg('Conectando à coleção motoboys do Firebase…');
+try{stop=firebase.firestore().collection('motoboys').onSnapshot(s=>{ready=true;rows=s.docs.map(d=>({id:d.id,...d.data()}));render();msg(rows.length+' cadastro(s) carregado(s) do Firebase.')},e=>{ready=false;rows=[];render();msg('Acesso ao Firebase indisponível: '+(e.code||e.message)+'. Não alteramos as regras de segurança.')})}catch(e){msg('Erro de conexão com Firebase: '+e.message)}}
+$('ita-frete-form').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;if(!admin()||!ready){msg('Aguarde conexão e autorização no Firebase.');return}
+const taxa=Number($('ita-frete-taxa').value);if(!Number.isFinite(taxa)||taxa<0||taxa>9999){msg('Informe taxa entre R$ 0 e R$ 9.999.');return}
+const r={nome:$('ita-frete-nome').value.trim(),tel:$('ita-frete-tel').value.trim(),bairros:$('ita-frete-bairros').value.trim(),taxa,ativo:$('ita-frete-ativo').value,atualizadoEm:firebase.firestore.FieldValue.serverTimestamp()};if(!r.nome){msg('Informe nome.');return}
+lock(true);try{const col=firebase.firestore().collection('motoboys');if(edit)await col.doc(edit).update(r);else await col.add({...r,criadoEm:firebase.firestore.FieldValue.serverTimestamp()});reset();msg('Cadastro salvo no Firebase. Aguarde atualização da lista.')}catch(err){msg('Firebase não permitiu salvar: '+(err.code||err.message)+'. Nenhuma regra foi alterada.')}finally{lock(false)}});
+$('ita-frete-list').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||busy||!admin()||!ready)return;const i=Number(b.dataset.edit??b.dataset.remove),r=rows[i];if(!Number.isInteger(i)||!r)return;
+if(b.hasAttribute('data-remove')){if(!confirm('Desativar este motoboy no Firebase? O registro será preservado.'))return;lock(true);try{await firebase.firestore().collection('motoboys').doc(r.id).update({ativo:'Inativo',atualizadoEm:firebase.firestore.FieldValue.serverTimestamp()});msg('Motoboy desativado no Firebase.')}catch(err){msg('Não foi possível desativar: '+(err.code||err.message))}finally{lock(false)}}else{edit=r.id;$('ita-frete-nome').value=r.nome||'';$('ita-frete-tel').value=r.tel||'';$('ita-frete-bairros').value=r.bairros||'';$('ita-frete-taxa').value=r.taxa??0;$('ita-frete-ativo').value=r.ativo||'Ativo';$('ita-frete-form').scrollIntoView({behavior:'smooth'})}});
+$('ita-frete-reset').onclick=reset;$('ita-frete-close').onclick=close;$('ita-frete-super').onclick=()=>$('ita-frete-super-msg').hidden=!$('ita-frete-super-msg').hidden;
+document.addEventListener('click',e=>{const b=e.target.closest('button,[role="tab"]');if(!b||b.closest('#ita-frete-panel'))return;if((b.textContent||'').replace(/\\s+/g,' ').trim().toUpperCase()!=='FRETE')return;e.preventDefault();e.stopImmediatePropagation();open()},true);
+if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStateChanged(u=>{if(!admin())close()});
 render();
 })();
 </script>
