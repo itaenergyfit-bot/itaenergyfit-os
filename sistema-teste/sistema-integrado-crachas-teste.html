@@ -2702,48 +2702,6 @@ help.addEventListener("click",async function(){const address=email.value.trim();
 </script>
 
 
-<!-- ITA FRETE TESTE v1: cadastro local sem alteração de Firestore -->
-<style>
-#ita-frete-panel{display:none;position:fixed;inset:4vh 2% 2%;z-index:2147483290;overflow:auto;background:#10231f;color:#effff7;border:2px solid #2ee59d;border-radius:16px;padding:20px;box-shadow:0 0 0 100vmax #000b;font:14px Arial,sans-serif}
-#ita-frete-panel *{box-sizing:border-box}#ita-frete-panel h2{font-size:24px;margin:0 0 12px}#ita-frete-panel h3{font-size:18px;margin:0 0 12px}
-#ita-frete-panel .ita-f-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}
-#ita-frete-panel .ita-f-card{background:#17382f;border:1px solid #376e59;border-radius:12px;padding:16px;margin:12px 0}
-#ita-frete-panel input,#ita-frete-panel select{width:100%;background:#0b2019;color:#fff;border:1px solid #56816f;border-radius:7px;padding:10px;margin:5px 0 10px}
-#ita-frete-panel label{display:block}#ita-frete-panel button{background:#2ee59d;color:#09251b;border:0;border-radius:8px;padding:10px 14px;font-weight:800;cursor:pointer;margin:4px}
-#ita-frete-panel button.secondary{background:#29483d;color:#fff;border:1px solid #56816f}
-#ita-frete-panel table{width:100%;border-collapse:collapse}#ita-frete-panel th,#ita-frete-panel td{text-align:left;padding:9px;border-bottom:1px solid #376e59}
-#ita-frete-panel .hint{color:#c1ddce;line-height:1.5}
-</style>
-<section id="ita-frete-panel" aria-label="Frete em teste">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>🚚 FRETE — ITAENERGYFIT</h2><button id="ita-frete-close" class="secondary">Fechar</button></div>
-<p class="hint">Ambiente de teste. O cadastro abaixo fica somente neste navegador e ainda não é compartilhado com Firebase ou checkout.</p>
-<div class="ita-f-grid">
-<div class="ita-f-card"><h3>📦 SuperFrete</h3><p class="hint">Integração existente: ItaEnergyFit utiliza um Worker de frete da Cloudflare. A conexão e a cotação serão verificadas antes de ativar operações nesta aba.</p><p><strong>Status:</strong> configuração pendente de validação</p><button id="ita-frete-super" class="secondary">Ver orientações</button><p id="ita-frete-super-msg" class="hint" hidden>Para cotações reais, precisamos conferir a URL do Worker, CEP de origem, serviços e permissões, sem colocar tokens no HTML.</p></div>
-<div class="ita-f-card"><h3>🛵 Entregas locais</h3><form id="ita-frete-form">
-<label>Nome do motoboy<input id="ita-frete-nome" required maxlength="90" placeholder="Nome do entregador"></label>
-<label>WhatsApp<input id="ita-frete-tel" maxlength="25" placeholder="(00) 00000-0000"></label>
-<label>Bairros atendidos<input id="ita-frete-bairros" maxlength="180" placeholder="Centro, Bairro Novo"></label>
-<label>Taxa de entrega (R$)<input id="ita-frete-taxa" type="number" min="0" max="9999" step="0.01" required placeholder="10,00"></label>
-<label>Situação<select id="ita-frete-ativo"><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option></select></label>
-<button type="submit">Salvar motoboy (teste)</button><button type="button" id="ita-frete-reset" class="secondary">Limpar</button>
-</form></div></div>
-<div class="ita-f-card"><h3>Motoboys cadastrados neste navegador</h3><div style="overflow:auto"><table><thead><tr><th>Nome</th><th>WhatsApp</th><th>Bairros</th><th>Taxa</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="ita-frete-list"></tbody></table></div><p id="ita-frete-message" class="hint" role="status"></p></div>
-</section>
-<script>
-(function(){'use strict';
-const $=id=>document.getElementById(id),panel=$('ita-frete-panel'),key='itaenergyfit_frete_motoboys_teste_v1';
-let rows=[],edit=-1;try{const parsed=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(parsed))rows=parsed}catch(e){}
-function safe(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function render(){const body=$('ita-frete-list');body.innerHTML=rows.map((r,i)=>'<tr><td>'+safe(r.nome)+'</td><td>'+safe(r.tel)+'</td><td>'+safe(r.bairros)+'</td><td>R$ '+Number(r.taxa).toFixed(2).replace('.',',')+'</td><td>'+safe(r.ativo)+'</td><td><button type="button" data-edit="'+i+'">Editar</button><button type="button" class="secondary" data-remove="'+i+'">Excluir</button></td></tr>').join('')||'<tr><td colspan="6">Nenhum motoboy cadastrado neste navegador.</td></tr>'}
-function save(){try{localStorage.setItem(key,JSON.stringify(rows));return true}catch(e){$('ita-frete-message').textContent='Não foi possível salvar neste navegador: '+e.message;return false}}
-function reset(){$('ita-frete-form').reset();edit=-1}
-$('ita-frete-form').addEventListener('submit',e=>{e.preventDefault();const taxa=Number($('ita-frete-taxa').value);if(!Number.isFinite(taxa)||taxa<0)return;const r={nome:$('ita-frete-nome').value.trim(),tel:$('ita-frete-tel').value.trim(),bairros:$('ita-frete-bairros').value.trim(),taxa,ativo:$('ita-frete-ativo').value};if(!r.nome)return;if(edit<0)rows.push(r);else rows[edit]=r;if(save()){$('ita-frete-message').textContent='Cadastro de teste salvo apenas neste navegador.';reset();render()}});
-$('ita-frete-list').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=Number(b.dataset.edit??b.dataset.remove);if(!Number.isInteger(i)||!rows[i])return;if(b.hasAttribute('data-remove')){if(!confirm('Excluir este cadastro de teste?'))return;rows.splice(i,1);save();render();reset()}else{const r=rows[i];edit=i;$('ita-frete-nome').value=r.nome;$('ita-frete-tel').value=r.tel;$('ita-frete-bairros').value=r.bairros;$('ita-frete-taxa').value=r.taxa;$('ita-frete-ativo').value=r.ativo;$('ita-frete-form').scrollIntoView({behavior:'smooth'})}});
-$('ita-frete-reset').onclick=reset;$('ita-frete-close').onclick=()=>panel.style.display='none';$('ita-frete-super').onclick=()=>$('ita-frete-super-msg').hidden=!$('ita-frete-super-msg').hidden;
-document.addEventListener('click',e=>{const b=e.target.closest('button,[role="tab"]');if(!b||b.closest('#ita-frete-panel'))return;if((b.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()!=='FRETE')return;e.preventDefault();e.stopImmediatePropagation();panel.style.display='block';render()},true);
-render();
-})();
-</script>
 </body> na loja ${te.lojaUrl} -->
 <div id="ita-widget" data-cupom="${P.cupomPadrao}" data-nome="${P.nomeAgente}" data-whats="${P.whatsapp}" data-insta="${P.instagram}"></div>
 <script>
@@ -3604,6 +3562,48 @@ document.addEventListener('click',ev=>{const el=ev.target instanceof Element?ev.
  ev.preventDefault();ev.stopImmediatePropagation();open();
 },true);
 function wait(n){if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStateChanged(()=>{if(!admin())close()});else if(n<100)setTimeout(()=>wait(n+1),150)}wait(0);
+})();
+</script>
+<!-- ITA FRETE TESTE v1: cadastro local sem alteração de Firestore -->
+<style>
+#ita-frete-panel{display:none;position:fixed;inset:4vh 2% 2%;z-index:2147483290;overflow:auto;background:#10231f;color:#effff7;border:2px solid #2ee59d;border-radius:16px;padding:20px;box-shadow:0 0 0 100vmax #000b;font:14px Arial,sans-serif}
+#ita-frete-panel *{box-sizing:border-box}#ita-frete-panel h2{font-size:24px;margin:0 0 12px}#ita-frete-panel h3{font-size:18px;margin:0 0 12px}
+#ita-frete-panel .ita-f-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}
+#ita-frete-panel .ita-f-card{background:#17382f;border:1px solid #376e59;border-radius:12px;padding:16px;margin:12px 0}
+#ita-frete-panel input,#ita-frete-panel select{width:100%;background:#0b2019;color:#fff;border:1px solid #56816f;border-radius:7px;padding:10px;margin:5px 0 10px}
+#ita-frete-panel label{display:block}#ita-frete-panel button{background:#2ee59d;color:#09251b;border:0;border-radius:8px;padding:10px 14px;font-weight:800;cursor:pointer;margin:4px}
+#ita-frete-panel button.secondary{background:#29483d;color:#fff;border:1px solid #56816f}
+#ita-frete-panel table{width:100%;border-collapse:collapse}#ita-frete-panel th,#ita-frete-panel td{text-align:left;padding:9px;border-bottom:1px solid #376e59}
+#ita-frete-panel .hint{color:#c1ddce;line-height:1.5}
+</style>
+<section id="ita-frete-panel" aria-label="Frete em teste">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>🚚 FRETE — ITAENERGYFIT</h2><button id="ita-frete-close" class="secondary">Fechar</button></div>
+<p class="hint">Ambiente de teste. O cadastro abaixo fica somente neste navegador e ainda não é compartilhado com Firebase ou checkout.</p>
+<div class="ita-f-grid">
+<div class="ita-f-card"><h3>📦 SuperFrete</h3><p class="hint">Integração existente: ItaEnergyFit utiliza um Worker de frete da Cloudflare. A conexão e a cotação serão verificadas antes de ativar operações nesta aba.</p><p><strong>Status:</strong> configuração pendente de validação</p><button id="ita-frete-super" class="secondary">Ver orientações</button><p id="ita-frete-super-msg" class="hint" hidden>Para cotações reais, precisamos conferir a URL do Worker, CEP de origem, serviços e permissões, sem colocar tokens no HTML.</p></div>
+<div class="ita-f-card"><h3>🛵 Entregas locais</h3><form id="ita-frete-form">
+<label>Nome do motoboy<input id="ita-frete-nome" required maxlength="90" placeholder="Nome do entregador"></label>
+<label>WhatsApp<input id="ita-frete-tel" maxlength="25" placeholder="(00) 00000-0000"></label>
+<label>Bairros atendidos<input id="ita-frete-bairros" maxlength="180" placeholder="Centro, Bairro Novo"></label>
+<label>Taxa de entrega (R$)<input id="ita-frete-taxa" type="number" min="0" max="9999" step="0.01" required placeholder="10,00"></label>
+<label>Situação<select id="ita-frete-ativo"><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option></select></label>
+<button type="submit">Salvar motoboy (teste)</button><button type="button" id="ita-frete-reset" class="secondary">Limpar</button>
+</form></div></div>
+<div class="ita-f-card"><h3>Motoboys cadastrados neste navegador</h3><div style="overflow:auto"><table><thead><tr><th>Nome</th><th>WhatsApp</th><th>Bairros</th><th>Taxa</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="ita-frete-list"></tbody></table></div><p id="ita-frete-message" class="hint" role="status"></p></div>
+</section>
+<script>
+(function(){'use strict';
+const $=id=>document.getElementById(id),panel=$('ita-frete-panel'),key='itaenergyfit_frete_motoboys_teste_v1';
+let rows=[],edit=-1;try{const parsed=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(parsed))rows=parsed}catch(e){}
+function safe(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){const body=$('ita-frete-list');body.innerHTML=rows.map((r,i)=>'<tr><td>'+safe(r.nome)+'</td><td>'+safe(r.tel)+'</td><td>'+safe(r.bairros)+'</td><td>R$ '+Number(r.taxa).toFixed(2).replace('.',',')+'</td><td>'+safe(r.ativo)+'</td><td><button type="button" data-edit="'+i+'">Editar</button><button type="button" class="secondary" data-remove="'+i+'">Excluir</button></td></tr>').join('')||'<tr><td colspan="6">Nenhum motoboy cadastrado neste navegador.</td></tr>'}
+function save(){try{localStorage.setItem(key,JSON.stringify(rows));return true}catch(e){$('ita-frete-message').textContent='Não foi possível salvar neste navegador: '+e.message;return false}}
+function reset(){$('ita-frete-form').reset();edit=-1}
+$('ita-frete-form').addEventListener('submit',e=>{e.preventDefault();const taxa=Number($('ita-frete-taxa').value);if(!Number.isFinite(taxa)||taxa<0)return;const r={nome:$('ita-frete-nome').value.trim(),tel:$('ita-frete-tel').value.trim(),bairros:$('ita-frete-bairros').value.trim(),taxa,ativo:$('ita-frete-ativo').value};if(!r.nome)return;if(edit<0)rows.push(r);else rows[edit]=r;if(save()){$('ita-frete-message').textContent='Cadastro de teste salvo apenas neste navegador.';reset();render()}});
+$('ita-frete-list').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=Number(b.dataset.edit??b.dataset.remove);if(!Number.isInteger(i)||!rows[i])return;if(b.hasAttribute('data-remove')){if(!confirm('Excluir este cadastro de teste?'))return;rows.splice(i,1);save();render();reset()}else{const r=rows[i];edit=i;$('ita-frete-nome').value=r.nome;$('ita-frete-tel').value=r.tel;$('ita-frete-bairros').value=r.bairros;$('ita-frete-taxa').value=r.taxa;$('ita-frete-ativo').value=r.ativo;$('ita-frete-form').scrollIntoView({behavior:'smooth'})}});
+$('ita-frete-reset').onclick=reset;$('ita-frete-close').onclick=()=>panel.style.display='none';$('ita-frete-super').onclick=()=>$('ita-frete-super-msg').hidden=!$('ita-frete-super-msg').hidden;
+document.addEventListener('click',e=>{const b=e.target.closest('button,[role="tab"]');if(!b||b.closest('#ita-frete-panel'))return;if((b.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()!=='FRETE')return;e.preventDefault();e.stopImmediatePropagation();panel.style.display='block';render()},true);
+render();
 })();
 </script>
 </body>
