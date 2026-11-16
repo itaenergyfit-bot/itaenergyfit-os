@@ -24,3 +24,11 @@ Atualizado em 2026-11-15. Documento de planejamento; não indica que as funciona
 - Desenvolver e testar apenas na pasta sistema-teste; preservar sistema/ e index.html oficial até aprovação.
 - Revisar regras de segurança do Firebase ao final das abas.
 - Não expor segredos ou credenciais no front-end.
+
+## Decisão sobre navegação — aba Frete substitui Vendedores
+- A aba **Vendedores** será removida do menu de teste, pois a gestão de indicações e comissões ficará concentrada em **Afiliadas**.
+- No mesmo lugar do menu, criar a aba **Frete**, com duas áreas:
+  1. **SuperFrete:** integração de cotação e acompanhamento de fretes nacionais; reutilizar a configuração/Worker de frete existente, sem expor token no navegador.
+  2. **Entregas locais:** cadastrar motoboys (nome, telefone, taxa, ativo/inativo), bairros/áreas atendidos e valores de entrega no município da loja.
+- Prever configurações de frete grátis e regras para seleção entre entrega local e transportadora, sujeitas a testes.
+- **Status: decisão registrada, implementação ainda pendente.** Não alterar o sistema oficial nem a loja nesta fase. Aplicar primeiro em sistema-teste, validar e depois revisar regras Firebase em conjunto.
