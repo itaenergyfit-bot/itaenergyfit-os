@@ -3651,7 +3651,7 @@ function close(){stop();panel.style.display='none';selected=null}
 async function open(){if(!admin())return;panel.style.display='block';selected=null;products=[];status('Consultando produtos no Firebase…');$('ita-bip-result').textContent='Nenhum estoque foi alterado.';$('ita-bip-code').value='';
 try{const snap=await firebase.firestore().collection('produtos').get();products=snap.docs.map(d=>({id:d.id,...d.data()}));status(products.length+' produto(s) carregado(s). Escaneie ou digite um código.')}catch(e){status('Não foi possível consultar produtos: '+(e.code||e.message))}}
 function match(){const code=$('ita-bip-code').value.trim().toLowerCase();selected=null;if(!code){status('Digite ou escaneie um código.');return}
-const matches=products.filter(p=>[p.sku,p.codigoBarras,p.codigoDeBarras,p.ean,p.codigo,p.id].some(x=>String(x||'').trim().toLowerCase()===code));
+const localMap=JSON.parse(localStorage.getItem('ita_bip_etiquetas_teste_v1')||'{}');const found=localMap[code.toUpperCase()];if(found){const product=products.find(p=>p.id===found.productId);if(product){selected=product;$('ita-bip-size').value=found.size;status('Produto identificado pela etiqueta de teste: '+(product.nome||product.id)+' — '+found.size+' — '+found.color);$('ita-bip-result').textContent='Etiqueta de teste reconhecida. Nenhuma movimentação foi gravada.';return}}const matches=products.filter(p=>[p.sku,p.codigoBarras,p.codigoDeBarras,p.ean,p.codigo,p.id].some(x=>String(x||'').trim().toLowerCase()===code));
 if(matches.length!==1){status(matches.length>1?'Código duplicado em '+matches.length+' produtos. Corrija o cadastro.':'Código não encontrado. Cadastre o SKU/código de barras no produto antes de movimentar.');$('ita-bip-result').textContent='Nenhuma movimentação realizada.';return}
 selected=matches[0];status('Produto identificado: '+(selected.nome||selected.id));$('ita-bip-result').textContent='Selecione tamanho, operação e quantidade para visualizar a simulação.';try{navigator.vibrate?.(70)}catch(e){}}
 $('ita-bip-search').onclick=match;$('ita-bip-code').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();match()}});
@@ -3665,6 +3665,41 @@ try{await loadQrLibrary();$('ita-bip-qr-reader').style.display='block';const qr=
 $('ita-bip-stop').onclick=stop;$('ita-bip-close').onclick=close;
 const stock=document.getElementById('ita-stock-panel');if(stock){const h=stock.querySelector('h2');if(h){const b=document.createElement('button');b.id='ita-bip-open';b.type='button';b.textContent='▥ Abrir BIP';h.after(b);b.onclick=open}}
 if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStateChanged(()=>{if(!admin())close()});
+})();
+</script>
+
+<!-- ITA ETIQUETAS DE PRODUTOS — TESTE LOCAL -->
+<style>
+#ita-label-panel{display:none;position:fixed;inset:4vh 3% 3%;z-index:2147483400;overflow:auto;background:#10231f;color:#f2fff7;border:2px solid #2ee59d;border-radius:14px;padding:18px;box-shadow:0 0 0 100vmax #000b;font:14px Arial}
+#ita-label-panel select,#ita-label-panel input{width:100%;padding:10px;margin:6px 0 14px;border:1px solid #527b6b;background:#0b211a;color:white;border-radius:8px}
+#ita-label-panel button,#ita-label-open{padding:10px 14px;border:0;border-radius:8px;background:#2ee59d;color:#09231a;font-weight:700;cursor:pointer;margin:5px}
+#ita-label-panel .label-preview{background:white;color:black;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;margin:12px 0;border-radius:8px;max-width:100%}
+#ita-label-panel .hint{color:#c1ddce;line-height:1.5}
+@media print{body *{visibility:hidden!important}#ita-label-panel,#ita-label-panel .label-preview,#ita-label-panel .label-preview *{visibility:visible!important}#ita-label-panel{position:absolute;inset:0;border:0;box-shadow:none;background:white;padding:0}#ita-label-panel>*:not(.label-preview){display:none!important}#ita-label-panel .label-preview{display:flex!important;margin:0}}
+</style>
+<section id="ita-label-panel" aria-label="Etiquetas de teste">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h2>▥ Etiquetas de produtos — Teste</h2><button id="ita-label-close">Fechar</button></div>
+<p class="hint">Códigos internos para teste do BIP. São salvos apenas neste navegador, não no Firebase. Não são códigos EAN/GTIN oficiais.</p>
+<label>Produto<select id="ita-label-product"></select></label>
+<label>Cor (nome ou código)<input id="ita-label-color" placeholder="Preto" maxlength="40" value="Preto"></label>
+<label>Tamanho<select id="ita-label-size"><option>PP</option><option>P</option><option>M</option><option>G</option><option>GG</option></select></label>
+<button id="ita-label-create">Gerar etiqueta de teste</button><button id="ita-label-print">Imprimir etiqueta</button>
+<p id="ita-label-status" role="status" class="hint"></p>
+<div class="label-preview" id="ita-label-preview" style="display:none"><strong>ITAENERGYFIT</strong><span id="ita-label-title"></span><svg id="ita-label-barcode"></svg><strong id="ita-label-code"></strong></div>
+</section>
+<script>
+(function(){'use strict';
+const $=id=>document.getElementById(id);let products=[],last='';
+const key='ita_bip_etiquetas_teste_v1';
+function admin(){try{return firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com'}catch(e){return false}}
+function safe(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function codeFor(id,color,size){const hex=Array.from(new TextEncoder().encode(id+'|'+color.trim().toUpperCase()+'|'+size)).map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();return 'ITA'+hex}
+async function open(){if(!admin())return;$('ita-label-panel').style.display='block';$('ita-label-status').textContent='Carregando produtos…';$('ita-label-preview').style.display='none';try{const snap=await firebase.firestore().collection('produtos').get();products=snap.docs.map(d=>({id:d.id,...d.data()}));$('ita-label-product').innerHTML=products.map(p=>'<option value="'+safe(p.id)+'">'+safe(p.nome||p.id)+'</option>').join('');$('ita-label-status').textContent=products.length+' produto(s) disponíveis.'}catch(e){$('ita-label-status').textContent='Erro ao consultar produtos: '+(e.code||e.message)}}
+function loadBarcode(){if(window.JsBarcode)return Promise.resolve();return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src='https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js';el.onload=resolve;el.onerror=()=>reject(Error('Biblioteca de etiquetas indisponível.'));document.head.appendChild(el)})}
+$('ita-label-create').onclick=async()=>{const p=products.find(x=>x.id===$('ita-label-product').value),color=$('ita-label-color').value.trim(),size=$('ita-label-size').value;if(!p||!color){$('ita-label-status').textContent='Selecione produto e informe a cor.';return}const code=codeFor(p.id,color,size);try{await loadBarcode();const map=JSON.parse(localStorage.getItem(key)||'{}');map[code]={productId:p.id,color,size};localStorage.setItem(key,JSON.stringify(map));$('ita-label-title').textContent=(p.nome||p.id)+' — '+color+' — '+size;$('ita-label-code').textContent=code;JsBarcode('#ita-label-barcode',code,{format:'CODE128',displayValue:false,width:1,height:55,margin:6});$('ita-label-preview').style.display='inline-flex';last=code;$('ita-label-status').textContent='Etiqueta de teste gerada. O BIP deste navegador pode reconhecer este código.'}catch(e){$('ita-label-status').textContent='Falha ao gerar etiqueta: '+e.message}};
+$('ita-label-print').onclick=()=>{if(!last){$('ita-label-status').textContent='Gere uma etiqueta primeiro.';return}window.print()};
+$('ita-label-close').onclick=()=>$('ita-label-panel').style.display='none';
+const stock=document.getElementById('ita-stock-panel');if(stock){const h=stock.querySelector('h2');if(h){const b=document.createElement('button');b.id='ita-label-open';b.type='button';b.textContent='▥ Etiquetas / códigos';h.after(b);b.onclick=open}}
 })();
 </script>
 </body>
