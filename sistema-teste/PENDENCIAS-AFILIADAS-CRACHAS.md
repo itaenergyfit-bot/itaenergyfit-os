@@ -48,3 +48,11 @@ Atualizado em 2026-11-15. Documento de planejamento; não indica que as funciona
 - Prever entradas, saídas e conferências por produto/variação/tamanho, com quantidade explícita, histórico, validação de estoque e proteção contra leituras duplicadas; a leitura isolada não deve alterar estoque sem modo de operação definido.
 - Integração futura: baixa automática após confirmação confiável do pagamento, sem baixar duas vezes quando houver BIP e webhook.
 - **Status: decisões registradas; implementação/testes pendentes na pasta sistema-teste.** Preservar sistema e loja oficiais e revisar regras do Firebase ao final.
+
+## Nova aba — Fornecedores
+- Acrescentar **Fornecedores** ao menu do sistema de teste.
+- Cadastro de empresa/fornecedor: nome, CNPJ (se houver), cidade, telefone, WhatsApp, status, categorias fornecidas e observações.
+- Produtos/custos: leggings, tops, conjuntos, macacões, custo unitário, condições e pedido mínimo.
+- Compras e histórico por fornecedor: itens, quantidades, custos, datas, status de recebimento.
+- Integração com **Estoque/BIP**: conferir mercadorias recebidas por código de barras, vincular produto/variação e registrar entradas de forma controlada e auditável; evitar entrada duplicada.
+- **Status: planejado; ainda não implementado.** Trabalhar apenas em sistema-teste, preservando produção.
