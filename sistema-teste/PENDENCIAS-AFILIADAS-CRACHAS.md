@@ -39,3 +39,12 @@ Atualizado em 2026-11-15. Documento de planejamento; não indica que as funciona
 - **Loja** é uma nova aba de administração/acesso à loja online, sem substituir **Configurações** ou **Atendimento ITA**.
 - Escopo inicial sugerido para Loja: link/visualização da loja publicada, acesso à vitrine e atalhos para Produtos e Configurações; validar funcionalidades específicas com o usuário antes de implementar.
 - **Status: decisão registrada, implementação pendente.** Manter tudo em sistema-teste até validação.
+
+## Decisão mais recente — organização final das abas e BIP
+- **Não criar a aba Loja.** Esta decisão substitui a proposta anterior de acrescentar Loja.
+- **Remover Vendedores do menu** e **acrescentar Frete** com SuperFrete e motoboys/entregas locais.
+- **Mover Atendimento ITA para dentro de Configurações**, sem aba separada no menu.
+- **Estoque: implementar BIP de código de barras EAN/SKU**, aproveitando a ideia já presente em versões anteriores do admin: leitura pela câmera do celular/notebook ou leitor físico USB/Bluetooth, feedback de bip/vibração quando possível, reconhecimento de código existente e opção de cadastrar código novo.
+- Prever entradas, saídas e conferências por produto/variação/tamanho, com quantidade explícita, histórico, validação de estoque e proteção contra leituras duplicadas; a leitura isolada não deve alterar estoque sem modo de operação definido.
+- Integração futura: baixa automática após confirmação confiável do pagamento, sem baixar duas vezes quando houver BIP e webhook.
+- **Status: decisões registradas; implementação/testes pendentes na pasta sistema-teste.** Preservar sistema e loja oficiais e revisar regras do Firebase ao final.
