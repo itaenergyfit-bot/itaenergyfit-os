@@ -3616,5 +3616,55 @@ if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStat
 render();
 })();
 </script>
+
+<!-- ITA BIP ESTOQUE v1 -->
+<style>
+#ita-bip-panel{display:none;position:fixed;inset:5vh 3% 3%;z-index:2147483340;overflow:auto;background:#10231f;color:#f2fff7;border:2px solid #2ee59d;border-radius:15px;padding:20px;box-shadow:0 0 0 100vmax #000c;font:14px Arial}
+#ita-bip-panel *{box-sizing:border-box}#ita-bip-panel h2{font-size:23px;margin:0 0 10px}#ita-bip-panel input,#ita-bip-panel select{display:block;width:100%;padding:12px;border:1px solid #507b68;background:#0a1c17;color:#fff;border-radius:9px;margin:7px 0 14px}
+#ita-bip-panel button,#ita-bip-open{padding:10px 14px;background:#2ee59d;color:#08281c;border:0;border-radius:9px;font-weight:bold;cursor:pointer;margin:5px}
+#ita-bip-panel button.secondary{background:#29483d;color:white;border:1px solid #527d69}
+#ita-bip-panel .ita-bip-card{border:1px solid #376e59;background:#17382f;border-radius:12px;padding:15px;margin:12px 0}
+#ita-bip-panel .ita-bip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}
+#ita-bip-panel video{width:100%;max-height:250px;background:#050e0b;border-radius:10px}
+#ita-bip-panel .muted{color:#c1ddce;line-height:1.5}
+</style>
+<section id="ita-bip-panel" aria-label="BIP do estoque em teste">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>▥ BIP — ESTOQUE ITAENERGYFIT</h2><button id="ita-bip-close" class="secondary">Fechar</button></div>
+<p class="muted"><strong>Modo seguro de teste:</strong> identifica produtos e simula entradas/saídas, sem alterar quantidades no Firebase. A gravação real será integrada e testada separadamente.</p>
+<div class="ita-bip-grid">
+<div class="ita-bip-card"><h3>Leitura do código de barras</h3><label for="ita-bip-code">Código de barras ou SKU</label><input id="ita-bip-code" placeholder="Escaneie com leitor USB/Bluetooth ou digite" autocomplete="off">
+<button id="ita-bip-search">Identificar produto</button><button id="ita-bip-camera" class="secondary">Abrir câmera</button><button id="ita-bip-stop" class="secondary">Parar câmera</button><video id="ita-bip-video" playsinline muted hidden></video><p id="ita-bip-camera-msg" class="muted"></p></div>
+<div class="ita-bip-card"><h3>Movimentação simulada</h3><label for="ita-bip-size">Tamanho</label><select id="ita-bip-size"><option>P</option><option>M</option><option>G</option><option>GG</option></select>
+<label for="ita-bip-mode">Operação</label><select id="ita-bip-mode"><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="conferencia">Conferência</option></select>
+<label for="ita-bip-qty">Quantidade</label><input id="ita-bip-qty" type="number" min="1" max="999" step="1" value="1">
+<button id="ita-bip-preview">Simular movimento</button></div></div>
+<div class="ita-bip-card"><h3>Resultado</h3><p id="ita-bip-status" role="status">Aguardando leitura.</p><p id="ita-bip-result" class="muted">Nenhum estoque foi alterado.</p></div>
+</section>
+<script>
+(function(){'use strict';
+const $=id=>document.getElementById(id),panel=$('ita-bip-panel');
+let products=[],selected=null,stream=null,scanning=false;
+function admin(){try{return firebase.auth().currentUser?.email?.toLowerCase()==='itaenergyfit@gmail.com'}catch(e){return false}}
+function status(t){$('ita-bip-status').textContent=t}
+function stop(){scanning=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('ita-bip-video').hidden=true}
+function close(){stop();panel.style.display='none';selected=null}
+async function open(){if(!admin())return;panel.style.display='block';selected=null;products=[];status('Consultando produtos no Firebase…');$('ita-bip-result').textContent='Nenhum estoque foi alterado.';$('ita-bip-code').value='';
+try{const snap=await firebase.firestore().collection('produtos').get();products=snap.docs.map(d=>({id:d.id,...d.data()}));status(products.length+' produto(s) carregado(s). Escaneie ou digite um código.')}catch(e){status('Não foi possível consultar produtos: '+(e.code||e.message))}}
+function match(){const code=$('ita-bip-code').value.trim().toLowerCase();selected=null;if(!code){status('Digite ou escaneie um código.');return}
+const matches=products.filter(p=>[p.sku,p.codigoBarras,p.codigoDeBarras,p.ean,p.codigo,p.id].some(x=>String(x||'').trim().toLowerCase()===code));
+if(matches.length!==1){status(matches.length>1?'Código duplicado em '+matches.length+' produtos. Corrija o cadastro.':'Código não encontrado. Cadastre o SKU/código de barras no produto antes de movimentar.');$('ita-bip-result').textContent='Nenhuma movimentação realizada.';return}
+selected=matches[0];status('Produto identificado: '+(selected.nome||selected.id));$('ita-bip-result').textContent='Selecione tamanho, operação e quantidade para visualizar a simulação.';try{navigator.vibrate?.(70)}catch(e){}}
+$('ita-bip-search').onclick=match;$('ita-bip-code').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();match()}});
+$('ita-bip-preview').onclick=()=>{if(!selected){status('Primeiro identifique um produto.');return}const k=$('ita-bip-size').value,mode=$('ita-bip-mode').value,n=Number($('ita-bip-qty').value);if(!Number.isSafeInteger(n)||n<1||n>999){status('Quantidade inválida.');return}
+const old=Number((selected.tamanhos||{})[k]||0);if(!Number.isSafeInteger(old)||old<0){status('Saldo inválido no Firebase.');return}
+const next=mode==='conferencia'?old:old+(mode==='entrada'?n:-n);if(next<0){status('Estoque insuficiente para saída.');return}
+$('ita-bip-result').textContent='SIMULAÇÃO — '+(selected.nome||selected.id)+' | tamanho '+k+' | '+mode+' '+n+' | saldo atual '+old+' → '+next+'. Nenhum dado foi gravado.'};
+$('ita-bip-camera').onclick=async()=>{stop();if(!('BarcodeDetector' in window)||!navigator.mediaDevices?.getUserMedia){$('ita-bip-camera-msg').textContent='Leitura pela câmera não disponível neste navegador. Use leitor USB/Bluetooth ou digite o código.';return}
+try{const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e']});stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=$('ita-bip-video');v.srcObject=stream;v.hidden=false;await v.play();scanning=true;$('ita-bip-camera-msg').textContent='Aponte a câmera para o código de barras.';const scan=async()=>{if(!scanning)return;try{const codes=await detector.detect(v);if(codes.length){$('ita-bip-code').value=codes[0].rawValue;match();stop();$('ita-bip-camera-msg').textContent='Código lido pela câmera.';return}}catch(e){}if(scanning)setTimeout(scan,350)};scan()}catch(e){stop();$('ita-bip-camera-msg').textContent='Não foi possível abrir a câmera: '+e.message}};
+$('ita-bip-stop').onclick=stop;$('ita-bip-close').onclick=close;
+const stock=document.getElementById('ita-stock-panel');if(stock){const h=stock.querySelector('h2');if(h){const b=document.createElement('button');b.id='ita-bip-open';b.type='button';b.textContent='▥ Abrir BIP';h.after(b);b.onclick=open}}
+if(window.firebase&&typeof firebase.auth==='function')firebase.auth().onAuthStateChanged(()=>{if(!admin())close()});
+})();
+</script>
 </body>
 </html>
