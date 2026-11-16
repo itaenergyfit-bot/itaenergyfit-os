@@ -32,3 +32,10 @@ Atualizado em 2026-11-15. Documento de planejamento; não indica que as funciona
   2. **Entregas locais:** cadastrar motoboys (nome, telefone, taxa, ativo/inativo), bairros/áreas atendidos e valores de entrega no município da loja.
 - Prever configurações de frete grátis e regras para seleção entre entrega local e transportadora, sujeitas a testes.
 - **Status: decisão registrada, implementação ainda pendente.** Não alterar o sistema oficial nem a loja nesta fase. Aplicar primeiro em sistema-teste, validar e depois revisar regras Firebase em conjunto.
+
+## Decisão adicional — duas abas no sistema
+- O usuário confirmou que quer **Frete** e **Loja** como abas distintas no sistema integrado.
+- **Frete** substitui a antiga aba **Vendedores**.
+- **Loja** é uma nova aba de administração/acesso à loja online, sem substituir **Configurações** ou **Atendimento ITA**.
+- Escopo inicial sugerido para Loja: link/visualização da loja publicada, acesso à vitrine e atalhos para Produtos e Configurações; validar funcionalidades específicas com o usuário antes de implementar.
+- **Status: decisão registrada, implementação pendente.** Manter tudo em sistema-teste até validação.
