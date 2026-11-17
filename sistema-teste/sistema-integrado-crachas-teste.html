@@ -3348,7 +3348,7 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase
 </style>
 <section id="ita-afiliadas-real" role="dialog" aria-modal="true" aria-label="Afiliadas Firebase">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2>AFILIADAS — FIREBASE</h2><button id="ita-af-close" type="button">Fechar</button></div>
-<p>Cadastros reais da coleção <b>afiliadas</b> e pedidos reais da coleção <b>pedidos</b>. Cupons ITA01–ITA07, comissão padrão de 10% apenas sobre pedidos confirmados como pagos. Não há exclusão de cadastros.</p>
+<p>Cadastros reais da coleção <b>afiliadas</b> e pedidos reais da coleção <b>pedidos</b>. Cupons individuais personalizáveis (ex.: ITA01 ou ELIANA01). Comissão demonstrativa de 10% sobre pedidos marcados como pagos; cálculo definitivo depende de confirmação segura do pagamento. Não há exclusão de cadastros.</p>
 <p id="ita-af-status" role="status">Aguardando autenticação…</p>
 <div class="ita-af-grid">
 <div class="ita-af-section"><b>Afiliadas cadastradas</b><h2 id="ita-af-count">—</h2></div>
@@ -3364,7 +3364,7 @@ function wait(n){if(window.firebase&&typeof firebase.auth==='function'){firebase
 <label>WhatsApp<input id="ita-af-whatsapp" maxlength="35"></label>
 <label>E-mail<input id="ita-af-email" type="email" maxlength="180"></label>
 <label>Instagram / rede social<input id="ita-af-rede" maxlength="180"></label>
-<label>Cupom individual *<select id="ita-af-cupom" required><option value="">Selecione</option><option>ITA01</option><option>ITA02</option><option>ITA03</option><option>ITA04</option><option>ITA05</option><option>ITA06</option><option>ITA07</option></select></label>
+<label>Cupom individual *<input id="ita-af-cupom" required maxlength="24" placeholder="Ex.: ITA01 ou ELIANA01" autocomplete="off" pattern="[A-Za-z0-9_-]{3,24}" title="Use de 3 a 24 caracteres: letras, números, hífen ou sublinhado"></label>
 <label>Situação<select id="ita-af-ativo"><option value="true">Ativa</option><option value="false">Inativa</option></select></label>
 </div>
 <label>Observações<textarea id="ita-af-obs" rows="2"></textarea></label>
@@ -3394,7 +3394,7 @@ function reset(){current=null;$('ita-af-form').reset();$('ita-af-form-title').te
 function stats(c){if(!orders)return null;const found=orders.filter(d=>cupom(d.data())===norm(c));const ok=found.filter(d=>paid(d.data()));return{all:found,ok,commission:ok.reduce((sum,d)=>sum+value(d.data())*.1,0)}}
 function render(){
  rows.replaceChildren();$('ita-af-count').textContent=records?records.length:'—';
- const couponOrders=orders?orders.filter(d=>/^ITA0[1-7]$/.test(cupom(d.data()))):null;
+ const couponOrders=orders&&records?orders.filter(d=>records.some(a=>norm(a.data().cupom||a.data().codigo)===cupom(d.data()))):null;
  const paidOrders=couponOrders?couponOrders.filter(d=>paid(d.data())):null;
  $('ita-af-orders').textContent=couponOrders?couponOrders.length:'—';
  $('ita-af-paid').textContent=paidOrders?paidOrders.length:'—';
@@ -3423,7 +3423,7 @@ function open(){
 }
 $('ita-af-form').addEventListener('submit',async ev=>{
  ev.preventDefault();if(busy)return;if(!admin()){message('Login do administrador necessário.');return}
- const nome=val('ita-af-nome'),c=norm(val('ita-af-cupom'));if(!nome||!/^ITA0[1-7]$/.test(c)){message('Informe nome e cupom válido ITA01–ITA07.');return}
+ const nome=val('ita-af-nome'),c=norm(val('ita-af-cupom'));if(!nome||!/^[A-Z0-9_-]{3,24}$/.test(c)){message('Informe nome e cupom individual com 3 a 24 caracteres (letras, números, hífen ou _).');return}
  if(records===null){message('Não é seguro salvar enquanto a leitura de afiliadas estiver bloqueada: não é possível verificar cupons duplicados.');return}
  const duplicate=records.find(d=>d.id!==current&&norm(d.data().cupom||d.data().codigo)===c);
  if(duplicate){message('Cupom '+c+' já está atribuído a '+(duplicate.data().nome||duplicate.id)+'. Edite o cadastro existente.');return}
