@@ -2766,6 +2766,32 @@ render();
 })();
 </script>
 
+
+<style>
+#ita-packaging-open{display:none!important}
+#ita-embalagens-tab{background:#2ee59d;color:#08271b;border:0;border-radius:9px;padding:10px 13px;font-weight:700;cursor:pointer}
+</style>
+<script>
+(function(){
+'use strict';
+function label(el){return (el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase()}
+function install(){
+ if(document.getElementById('ita-embalagens-tab'))return;
+ const candidates=Array.from(document.querySelectorAll('button,[role="tab"]'));
+ const anchor=candidates.find(el=>label(el)==='ESTOQUE'&&!el.closest('#ita-stock-panel,#ita-integrado-panel,#ita-packaging-panel'))||
+ candidates.find(el=>label(el)==='PEDIDOS'&&!el.closest('#ita-packaging-panel'));
+ if(!anchor||!anchor.parentElement)return;
+ const tab=document.createElement('button');
+ tab.type='button';tab.id='ita-embalagens-tab';tab.textContent='📦 EMBALAGENS';tab.setAttribute('aria-label','Embalagens por pedido');
+ tab.className=anchor.className;
+ tab.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const panel=document.getElementById('ita-packaging-panel');if(panel)panel.style.display='block'});
+ anchor.parentElement.insertBefore(tab,anchor.nextSibling);
+}
+document.addEventListener('DOMContentLoaded',install);
+new MutationObserver(install).observe(document.documentElement,{childList:true,subtree:true});
+install();
+})();
+</script>
 </body> na loja ${te.lojaUrl} -->
 <div id="ita-widget" data-cupom="${P.cupomPadrao}" data-nome="${P.nomeAgente}" data-whats="${P.whatsapp}" data-insta="${P.instagram}"></div>
 <script>
