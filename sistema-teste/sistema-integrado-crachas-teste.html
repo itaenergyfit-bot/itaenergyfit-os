@@ -3764,6 +3764,8 @@ msg('Sugestão: '+m.name+' × '+$('ita-pack-quantity').value+'. Custo interno: '
 $('ita-pack-confirm').onclick=()=>{
 const id=$('ita-pack-order').value.trim(),m=db.materials.find(x=>x.id===$('ita-pack-choice').value),qty=Number($('ita-pack-quantity').value);
 if(!id||id.length>80)return msg('Informe um identificador de pedido válido.');
+if(realOrders.has(id)&&!isPaid(realOrders.get(id)))return msg('Bloqueado: pedido real ainda não está pago. Nenhuma embalagem foi descontada.');
+if(realOrders.has(id))return msg('Pedido real selecionado: a confirmação definitiva exige integração transacional e verificação de pagamento. Nenhuma baixa foi realizada.');
 if(db.orders[id])return msg('Este pedido já teve a embalagem confirmada neste navegador. Nenhuma nova baixa foi feita.');
 if(!m||!Number.isSafeInteger(qty)||qty<1)return msg('Selecione material e quantidade válida.');
 if(m.stock<qty)return msg('Saldo de materiais insuficiente.');
@@ -3771,17 +3773,35 @@ if(!confirm('Confirmar embalagem de '+id+'? Isto descontará '+qty+' unidade(s) 
 m.stock-=qty;db.orders[id]={materialId:m.id,materialName:m.name,qty,cost:qty*m.cost,confirmedAt:new Date().toISOString()};save();render();msg('Pedido '+id+' embalado no TESTE. Custo interno '+money(qty*m.cost)+'. Estoque real do Firebase não foi alterado.');
 };
 const realSelect=$('ita-pack-real-order'),realStatus=$('ita-pack-firebase-status');
+const realOrders=new Map();
+function getPieces(d){
+ const items=d.itens||d.items||d.produtos||d.carrinho;
+ if(!Array.isArray(items)||!items.length)return null;
+ let total=0;
+ for(const item of items){const n=Number(item.quantidade??item.qtd??item.qty??1);if(!Number.isSafeInteger(n)||n<1)return null;total+=n;}
+ return Number.isSafeInteger(total)&&total>0?total:null;
+}
+function isPaid(d){return ['pago','paid','approved','aprovado','payment_approved'].includes(String(d.status||d.situacao||d.paymentStatus||'').trim().toLowerCase())}
+
 $('ita-pack-load-orders').onclick=async()=>{
  realStatus.textContent='Consultando pedidos...';
  try{
   if(!window.firebase||!firebase.apps.length||!firebase.auth().currentUser)throw Error('Entre no sistema como administrador antes de consultar.');
   const snap=await firebase.firestore().collection('pedidos').limit(30).get();
-  realSelect.replaceChildren(new Option('Selecione um pedido',''));
-  snap.docs.forEach(doc=>{const d=doc.data()||{};const label=doc.id+' — '+String(d.status||d.situacao||'sem status');realSelect.add(new Option(label,doc.id))});
+  realOrders.clear();realSelect.replaceChildren(new Option('Selecione um pedido',''));
+  snap.docs.forEach(doc=>{const d=doc.data()||{};realOrders.set(doc.id,d);const label=doc.id+' — '+String(d.status||d.situacao||'sem status');realSelect.add(new Option(label,doc.id))});
   realStatus.textContent=snap.empty?'Nenhum pedido disponível.':'Consulta concluída: '+snap.size+' pedido(s). Nenhum dado foi modificado.';
  }catch(e){realStatus.textContent='Consulta não disponível: '+(e.code||e.message)}
 };
-realSelect.onchange=()=>{if(realSelect.value){$('ita-pack-order').value=realSelect.value;msg('Pedido real selecionado. A confirmação continua LOCAL e não altera o Firebase.')}};
+realSelect.onchange=()=>{
+ const id=realSelect.value;if(!id)return;
+ const d=realOrders.get(id);if(!d)return;
+ $('ita-pack-order').value=id;
+ const pieces=getPieces(d);
+ if(pieces!==null){$('ita-pack-pieces').value=pieces;msg('Pedido selecionado: '+pieces+' peça(s). Clique em Sugerir automaticamente. Confirmação continua somente local.')}
+ else msg('Pedido selecionado, mas não foi possível identificar a quantidade de peças. Confira os itens do pedido antes de informar a quantidade.');
+ realStatus.textContent=isPaid(d)?'Status informado pelo pedido: pago. Ainda não há validação independente do Mercado Pago.':'Pedido sem pagamento confirmado. Preparação definitiva bloqueada.';
+};
 render();
 })();
 </script>
