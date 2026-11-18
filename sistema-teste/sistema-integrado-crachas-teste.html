@@ -2702,6 +2702,71 @@ help.addEventListener("click",async function(){const address=email.value.trim();
 </script>
 
 
+<style>
+#ita-packaging-panel{display:none;position:fixed;inset:5% 3%;z-index:2147483000;overflow:auto;background:#102a23;color:#f3fff9;border:1px solid #2ee59d;border-radius:16px;padding:20px;box-shadow:0 0 0 100vmax #000a;font:15px Arial,sans-serif}
+#ita-packaging-panel h2,#ita-packaging-panel h3{color:#2ee59d}#ita-packaging-panel input,#ita-packaging-panel select{background:#fff;color:#102a23;border:1px solid #2ee59d;border-radius:7px;padding:9px;max-width:100%}
+#ita-packaging-panel button,#ita-packaging-open{background:#2ee59d;color:#08271b;border:0;border-radius:8px;padding:10px 13px;font-weight:700;cursor:pointer;margin:4px}
+#ita-packaging-panel .ita-pack-grid{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}#ita-packaging-panel label{display:flex;flex-direction:column;gap:5px}#ita-packaging-panel table{width:100%;border-collapse:collapse}#ita-packaging-panel td,#ita-packaging-panel th{border-bottom:1px solid #47675b;padding:9px;text-align:left}#ita-packaging-panel .ita-pack-note{color:#b5d8cb}
+</style>
+<button id="ita-packaging-open" type="button" style="display:none">📦 Embalagens · TESTE</button>
+<section id="ita-packaging-panel" role="dialog" aria-modal="true" aria-label="Embalagem por pedido">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2>Embalagem por pedido · modo misto</h2><button id="ita-packaging-close" type="button">Fechar</button></div>
+<p class="ita-pack-note">Protótipo de testes: dados guardados apenas neste navegador. Não altera pedidos, estoque ou regras do Firebase. Custos são internos e não são cobrados do cliente.</p>
+<h3>Materiais personalizados</h3>
+<div class="ita-pack-grid"><label>Material<input id="ita-pack-name" placeholder="Ex.: Caixa ItaEnergyFit"></label><label>Custo unitário (R$)<input id="ita-pack-cost" type="number" min="0" step="0.01" value="0"></label><label>Saldo de teste<input id="ita-pack-stock" type="number" min="0" step="1" value="0"></label><label>Capacidade (peças)<input id="ita-pack-capacity" type="number" min="1" step="1" value="1"></label></div>
+<button id="ita-pack-add" type="button">Cadastrar material</button>
+<div style="overflow:auto"><table><thead><tr><th>Material</th><th>Custo</th><th>Saldo</th><th>Capacidade</th><th>Ação</th></tr></thead><tbody id="ita-pack-materials"></tbody></table></div>
+<h3>Preparar pedido</h3>
+<div class="ita-pack-grid"><label>Número do pedido<input id="ita-pack-order" placeholder="ITA001"></label><label>Quantidade de peças<input id="ita-pack-pieces" type="number" min="1" step="1" value="1"></label><label>Material<select id="ita-pack-choice"></select></label><label>Embalagens<input id="ita-pack-quantity" type="number" min="1" step="1" value="1"></label></div>
+<button id="ita-pack-suggest" type="button">Sugerir automaticamente</button><button id="ita-pack-confirm" type="button">Confirmar embalagem (teste)</button>
+<p id="ita-pack-summary" aria-live="polite"></p><h3>Histórico de teste</h3><div id="ita-pack-history"></div>
+</section>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id),key='itaenergyfit_packaging_test_v1';
+const initial={materials:[],orders:{}};
+let db;try{db=JSON.parse(localStorage.getItem(key))||initial;if(!Array.isArray(db.materials)||!db.orders)db=initial}catch(e){db=initial}
+const save=()=>localStorage.setItem(key,JSON.stringify(db));
+const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const msg=t=>$('ita-pack-summary').textContent=t;
+const safe=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(){
+$('ita-pack-materials').innerHTML=db.materials.map(m=>'<tr><td>'+safe(m.name)+'</td><td>'+money(m.cost)+'</td><td>'+m.stock+'</td><td>'+m.capacity+'</td><td><button type="button" data-remove="'+m.id+'">Excluir</button></td></tr>').join('')||'<tr><td colspan="5">Cadastre o primeiro material.</td></tr>';
+$('ita-pack-choice').innerHTML=db.materials.map(m=>'<option value="'+m.id+'">'+safe(m.name)+'</option>').join('');
+$('ita-pack-history').innerHTML=Object.entries(db.orders).map(([id,o])=>'<p>'+safe(id)+' — '+safe(o.materialName)+' × '+o.qty+' — '+money(o.cost)+' — Embalado (teste)</p>').join('')||'Nenhum pedido embalado.';
+}
+$('ita-packaging-open').onclick=()=>$('ita-packaging-panel').style.display='block';
+$('ita-packaging-close').onclick=()=>$('ita-packaging-panel').style.display='none';
+$('ita-pack-add').onclick=()=>{
+const name=$('ita-pack-name').value.trim(),cost=Number($('ita-pack-cost').value),stock=Number($('ita-pack-stock').value),capacity=Number($('ita-pack-capacity').value);
+if(!name||!Number.isFinite(cost)||cost<0||!Number.isSafeInteger(stock)||stock<0||!Number.isSafeInteger(capacity)||capacity<1)return msg('Preencha material, custo, saldo e capacidade válidos.');
+db.materials.push({id:String(Date.now())+'-'+Math.random().toString(36).slice(2),name,cost,stock,capacity});save();render();msg('Material cadastrado no ambiente de teste.');
+};
+$('ita-pack-materials').onclick=e=>{const b=e.target.closest('[data-remove]');if(!b)return;if(!confirm('Excluir este material de teste?'))return;db.materials=db.materials.filter(m=>m.id!==b.dataset.remove);save();render()};
+$('ita-pack-suggest').onclick=()=>{
+const pieces=Number($('ita-pack-pieces').value);
+if(!Number.isSafeInteger(pieces)||pieces<1)return msg('Informe a quantidade de peças.');
+const candidates=db.materials.filter(m=>m.stock>0).sort((a,b)=>(Math.ceil(pieces/a.capacity)*a.cost)-(Math.ceil(pieces/b.capacity)*b.cost));
+const m=candidates.find(m=>m.stock>=Math.ceil(pieces/m.capacity));
+if(!m)return msg('Não há embalagem suficiente em estoque de teste.');
+$('ita-pack-choice').value=m.id;$('ita-pack-quantity').value=Math.ceil(pieces/m.capacity);
+msg('Sugestão: '+m.name+' × '+$('ita-pack-quantity').value+'. Custo interno: '+money(m.cost*Number($('ita-pack-quantity').value))+'. Você pode alterar antes de confirmar.');
+};
+$('ita-pack-confirm').onclick=()=>{
+const id=$('ita-pack-order').value.trim(),m=db.materials.find(x=>x.id===$('ita-pack-choice').value),qty=Number($('ita-pack-quantity').value);
+if(!id||id.length>80)return msg('Informe um identificador de pedido válido.');
+if(db.orders[id])return msg('Este pedido já teve a embalagem confirmada neste navegador. Nenhuma nova baixa foi feita.');
+if(!m||!Number.isSafeInteger(qty)||qty<1)return msg('Selecione material e quantidade válida.');
+if(m.stock<qty)return msg('Saldo de materiais insuficiente.');
+if(!confirm('Confirmar embalagem de '+id+'? Isto descontará '+qty+' unidade(s) somente do estoque LOCAL de teste.'))return;
+m.stock-=qty;db.orders[id]={materialId:m.id,materialName:m.name,qty,cost:qty*m.cost,confirmedAt:new Date().toISOString()};save();render();msg('Pedido '+id+' embalado no TESTE. Custo interno '+money(qty*m.cost)+'. Estoque real do Firebase não foi alterado.');
+};
+render();
+})();
+</script>
+<style>#ita-embalagens-tab{background:#2ee59d!important;color:#08271b!important;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer}</style>
+<script>(function(){function add(){if(document.getElementById('ita-embalagens-tab'))return;const tabs=Array.from(document.querySelectorAll('button,[role="tab"]'));const anchor=tabs.find(e=>/^(ESTOQUE|PEDIDOS)$/i.test((e.textContent||'').trim())&&!e.closest('#ita-packaging-panel,#ita-stock-panel'));if(!anchor||!anchor.parentNode)return;const b=document.createElement('button');b.type='button';b.id='ita-embalagens-tab';b.textContent='📦 EMBALAGENS';b.className=anchor.className;b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();document.getElementById('ita-packaging-open').click()};anchor.parentNode.insertBefore(b,anchor.nextSibling)}document.addEventListener('DOMContentLoaded',add);new MutationObserver(add).observe(document.documentElement,{childList:true,subtree:true});add()})();</script>
 </body> na loja ${te.lojaUrl} -->
 <div id="ita-widget" data-cupom="${P.cupomPadrao}" data-nome="${P.nomeAgente}" data-whats="${P.whatsapp}" data-insta="${P.instagram}"></div>
 <script>
