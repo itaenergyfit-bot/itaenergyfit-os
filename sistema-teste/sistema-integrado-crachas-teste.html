@@ -3719,6 +3719,11 @@ const stock=document.getElementById('ita-stock-panel');if(stock){const h=stock.q
 <div class="ita-pack-grid"><label>Material<input id="ita-pack-name" placeholder="Ex.: Caixa ItaEnergyFit"></label><label>Custo unitário (R$)<input id="ita-pack-cost" type="number" min="0" step="0.01" value="0"></label><label>Saldo de teste<input id="ita-pack-stock" type="number" min="0" step="1" value="0"></label><label>Capacidade (peças)<input id="ita-pack-capacity" type="number" min="1" step="1" value="1"></label></div>
 <button id="ita-pack-add" type="button">Cadastrar material</button>
 <div style="overflow:auto"><table><thead><tr><th>Material</th><th>Custo</th><th>Saldo</th><th>Capacidade</th><th>Ação</th></tr></thead><tbody id="ita-pack-materials"></tbody></table></div>
+<h3>Pedidos reais do Firebase · consulta segura</h3>
+<p class="ita-pack-note">Nesta etapa, somente consulta de pedidos. Confirmar embalagem continua em modo local de teste, sem alterar o Firebase.</p>
+<button type="button" id="ita-pack-load-orders">Consultar pedidos do Firebase</button>
+<label style="display:inline-flex;gap:8px;align-items:center">Pedido existente <select id="ita-pack-real-order"><option value="">Selecione após consultar</option></select></label>
+<p id="ita-pack-firebase-status" aria-live="polite">Aguardando consulta.</p>
 <h3>Preparar pedido</h3>
 <div class="ita-pack-grid"><label>Número do pedido<input id="ita-pack-order" placeholder="ITA001"></label><label>Quantidade de peças<input id="ita-pack-pieces" type="number" min="1" step="1" value="1"></label><label>Material<select id="ita-pack-choice"></select></label><label>Embalagens<input id="ita-pack-quantity" type="number" min="1" step="1" value="1"></label></div>
 <button id="ita-pack-suggest" type="button">Sugerir automaticamente</button><button id="ita-pack-confirm" type="button">Confirmar embalagem (teste)</button>
@@ -3765,6 +3770,18 @@ if(m.stock<qty)return msg('Saldo de materiais insuficiente.');
 if(!confirm('Confirmar embalagem de '+id+'? Isto descontará '+qty+' unidade(s) somente do estoque LOCAL de teste.'))return;
 m.stock-=qty;db.orders[id]={materialId:m.id,materialName:m.name,qty,cost:qty*m.cost,confirmedAt:new Date().toISOString()};save();render();msg('Pedido '+id+' embalado no TESTE. Custo interno '+money(qty*m.cost)+'. Estoque real do Firebase não foi alterado.');
 };
+const realSelect=$('ita-pack-real-order'),realStatus=$('ita-pack-firebase-status');
+$('ita-pack-load-orders').onclick=async()=>{
+ realStatus.textContent='Consultando pedidos...';
+ try{
+  if(!window.firebase||!firebase.apps.length||!firebase.auth().currentUser)throw Error('Entre no sistema como administrador antes de consultar.');
+  const snap=await firebase.firestore().collection('pedidos').limit(30).get();
+  realSelect.replaceChildren(new Option('Selecione um pedido',''));
+  snap.docs.forEach(doc=>{const d=doc.data()||{};const label=doc.id+' — '+String(d.status||d.situacao||'sem status');realSelect.add(new Option(label,doc.id))});
+  realStatus.textContent=snap.empty?'Nenhum pedido disponível.':'Consulta concluída: '+snap.size+' pedido(s). Nenhum dado foi modificado.';
+ }catch(e){realStatus.textContent='Consulta não disponível: '+(e.code||e.message)}
+};
+realSelect.onchange=()=>{if(realSelect.value){$('ita-pack-order').value=realSelect.value;msg('Pedido real selecionado. A confirmação continua LOCAL e não altera o Firebase.')}};
 render();
 })();
 </script>
