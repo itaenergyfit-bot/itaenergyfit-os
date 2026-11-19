@@ -3764,6 +3764,7 @@ msg('Sugestão: '+m.name+' × '+$('ita-pack-quantity').value+'. Custo interno: '
 $('ita-pack-confirm').onclick=()=>{
 const id=$('ita-pack-order').value.trim(),m=db.materials.find(x=>x.id===$('ita-pack-choice').value),qty=Number($('ita-pack-quantity').value);
 if(!id||id.length>80)return msg('Informe um identificador de pedido válido.');
+if($('ita-pack-real-order').value)return msg('BLOQUEADO: pedido real selecionado. Não é permitido confirmar embalagem no modo de teste, independentemente do status.');
 if(realOrders.has(id)&&!isPaid(realOrders.get(id)))return msg('Bloqueado: pedido real ainda não está pago. Nenhuma embalagem foi descontada.');
 if(realOrders.has(id))return msg('Pedido real selecionado: a confirmação definitiva exige integração transacional e verificação de pagamento. Nenhuma baixa foi realizada.');
 if(db.orders[id])return msg('Este pedido já teve a embalagem confirmada neste navegador. Nenhuma nova baixa foi feita.');
@@ -3788,13 +3789,13 @@ $('ita-pack-load-orders').onclick=async()=>{
  try{
   if(!window.firebase||!firebase.apps.length||!firebase.auth().currentUser)throw Error('Entre no sistema como administrador antes de consultar.');
   const snap=await firebase.firestore().collection('pedidos').limit(30).get();
-  realOrders.clear();realSelect.replaceChildren(new Option('Selecione um pedido',''));
+  realOrders.clear();realSelect.replaceChildren(new Option('Selecione um pedido',''));$('ita-pack-confirm').disabled=false;
   snap.docs.forEach(doc=>{const d=doc.data()||{};realOrders.set(doc.id,d);const label=doc.id+' — '+String(d.status||d.situacao||'sem status');realSelect.add(new Option(label,doc.id))});
   realStatus.textContent=snap.empty?'Nenhum pedido disponível.':'Consulta concluída: '+snap.size+' pedido(s). Nenhum dado foi modificado.';
  }catch(e){realStatus.textContent='Consulta não disponível: '+(e.code||e.message)}
 };
 realSelect.onchange=()=>{
- const id=realSelect.value;if(!id)return;
+ const id=realSelect.value; $('ita-pack-confirm').disabled=!!id; $('ita-pack-confirm').title=id?'Pedido real: confirmação bloqueada até integração segura':'';if(!id)return;
  const d=realOrders.get(id);if(!d)return;
  $('ita-pack-order').value=id;
  const pieces=getPieces(d);
