@@ -3912,13 +3912,17 @@ $('ita-bairro-add').onclick=()=>{
  m.bairros.push({nome,valor:Math.round(v*100)/100});$('ita-bairro-nome').value='';$('ita-bairro-valor').value='';save()
 };
 function addButton(){
- if($('ita-municipios-open'))return;
- const tabs=[...document.querySelectorAll('button,[role="tab"]')];
- const tab=tabs.find(x=>(x.textContent||'').trim().toUpperCase()==='FRETE'&&!x.closest('#ita-municipios-modal'));
- if(!tab||!tab.parentElement)return;
- const b=document.createElement('button');b.type='button';b.id='ita-municipios-open';b.textContent='📍 MUNICÍPIOS / BAIRROS';b.className=tab.className;
- b.style.border='1px solid #2ee59d';b.style.color='#2ee59d';b.style.background='transparent';
- b.onclick=()=>{render();modal.classList.add('ativo')};tab.insertAdjacentElement('afterend',b)
+ const panel=document.getElementById('ita-frete-panel');
+ if(!panel)return;
+ const old=document.getElementById('ita-municipios-open');
+ if(old&&panel.contains(old))return;
+ if(old)old.remove();
+ const btn=document.createElement('button');
+ btn.type='button';btn.id='ita-municipios-open';btn.textContent='📍 Configurar municípios e preços por bairro';
+ btn.style.cssText='display:block;margin:14px 0;padding:12px 16px;border:1px solid #2ee59d;border-radius:9px;background:#173c31;color:#2ee59d;font-weight:bold;cursor:pointer';
+ btn.onclick=()=>{render();modal.classList.add('ativo')};
+ const grid=panel.querySelector('.ita-f-grid');
+ if(grid)grid.insertAdjacentElement('beforebegin',btn);else panel.appendChild(btn);
 }
 document.addEventListener('DOMContentLoaded',addButton);new MutationObserver(addButton).observe(document.documentElement,{childList:true,subtree:true});addButton();render()
 })();
