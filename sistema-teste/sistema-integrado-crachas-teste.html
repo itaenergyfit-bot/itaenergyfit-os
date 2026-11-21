@@ -3896,8 +3896,8 @@ function render(){
   line.append(name,price,del);area.append(line)
  }
 }
-$('ita-municipios-close').onclick=()=>modal.classList.remove('ativo');
-modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('ativo')});
+$('ita-municipios-close').onclick=()=>{modal.classList.remove('ativo');modal.style.removeProperty('display')};
+modal.addEventListener('click',e=>{if(e.target===modal){modal.classList.remove('ativo');modal.style.removeProperty('display')}});
 $('ita-municipios-select').onchange=e=>{data.selecionado=e.target.value;save()};
 $('ita-municipios-add').onclick=()=>{
  const nome=$('ita-municipios-nome').value.trim(),uf=$('ita-municipios-uf').value.trim().toUpperCase();
@@ -3920,7 +3920,7 @@ function addButton(){
  const btn=document.createElement('button');
  btn.type='button';btn.id='ita-municipios-open';btn.textContent='📍 Configurar municípios e preços por bairro';
  btn.style.cssText='display:block;margin:14px 0;padding:12px 16px;border:1px solid #2ee59d;border-radius:9px;background:#173c31;color:#2ee59d;font-weight:bold;cursor:pointer';
- btn.onclick=()=>{render();modal.classList.add('ativo')};
+ btn.onclick=(event)=>{event.preventDefault();event.stopPropagation();try{render();document.body.appendChild(modal);modal.style.setProperty('display','flex','important');modal.classList.add('ativo')}catch(err){console.error('Municípios/bairros:',err);alert('Não foi possível abrir o cadastro: '+err.message)}};
  const grid=panel.querySelector('.ita-f-grid');
  if(grid)grid.insertAdjacentElement('beforebegin',btn);else panel.appendChild(btn);
 }
