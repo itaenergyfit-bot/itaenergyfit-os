@@ -3915,8 +3915,8 @@ $('ita-municipios-select').onchange=e=>{data.selecionado=e.target.value;save()};
 let cepVerificado=null;
 $('ita-origem-cep').addEventListener('input',()=>{cepVerificado=null;$('ita-cep-resultado').textContent=''});
 $('ita-cep-buscar').onclick=async()=>{
- const cep=$('ita-origem-cep').value.replace(/\\D/g,'');
- if(!/^\\d{8}$/.test(cep))return alert('Informe um CEP válido de 8 dígitos.');
+ const cep=$('ita-origem-cep').value.replace(/\D/g,'');
+ if(!/^\d{8}$/.test(cep))return alert('Informe um CEP válido de 8 dígitos.');
  const resultado=$('ita-cep-resultado');resultado.textContent='Consultando CEP...';
  cepVerificado=null;
  try{
@@ -3936,8 +3936,8 @@ $('ita-cep-buscar').onclick=async()=>{
  }catch(err){resultado.textContent='Não foi possível identificar o município. Confira o CEP e a conexão.';console.warn('Consulta CEP:',err)}
 };
 $('ita-origem-salvar').onclick=()=>{
- const cep=$('ita-origem-cep').value.replace(/\\D/g,'');
- if(!/^\\d{8}$/.test(cep))return alert('Informe um CEP de origem com 8 dígitos.');
+ const cep=$('ita-origem-cep').value.replace(/\D/g,'');
+ if(!/^\d{8}$/.test(cep))return alert('Informe um CEP de origem com 8 dígitos.');
  const m=selected();if(!m)return alert('Selecione um município.');
  if(!cepVerificado||cepVerificado.cep!==cep||cepVerificado.nome!==m.nome||cepVerificado.uf!==m.uf)return alert('Primeiro clique em Buscar município pelo CEP e confirme a cidade encontrada.');
  if(!confirm('Definir '+m.nome+' — '+m.uf+' como origem principal de TESTE? Isso não muda o frete real.'))return;
