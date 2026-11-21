@@ -3861,7 +3861,14 @@ render();
 <h2 style="margin:0 0 14px;color:#2ee59d">Frete local · Municípios e bairros</h2>
 <button class="sec" id="ita-municipios-close" type="button">Fechar</button></div>
 <p class="ita-note">MODO DE TESTE: dados guardados somente neste navegador. Ainda não altera Firebase, checkout nem preço cobrado dos clientes.</p>
-<label>Município selecionado</label><select id="ita-municipios-select"></select>
+<label>Município para editar bairros</label><select id="ita-municipios-select"></select>
+<div style="border:1px solid #39745e;padding:12px;border-radius:10px;margin:8px 0 16px">
+<strong>Origem principal da loja (teste)</strong>
+<p class="ita-note">Escolha um município cadastrado e informe o CEP de origem. Esta alteração é local e não muda a SuperFrete nem os pagamentos.</p>
+<div id="ita-origem-atual" style="margin:8px 0;color:#2ee59d;font-weight:bold"></div>
+<label>CEP de origem (8 dígitos)</label><input id="ita-origem-cep" inputmode="numeric" maxlength="9" placeholder="Ex.: 88850000">
+<button id="ita-origem-salvar" type="button">Definir município selecionado como origem</button>
+</div>
 <div style="display:grid;grid-template-columns:1fr 85px auto;gap:8px;align-items:end">
 <div><label>Novo município</label><input id="ita-municipios-nome" placeholder="Ex.: Itapipoca"></div>
 <div><label>UF</label><input id="ita-municipios-uf" maxlength="2" placeholder="CE"></div>
@@ -3879,6 +3886,7 @@ render();
 const KEY='ita_frete_municipios_bairros_teste_v1';
 let data;try{data=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
 if(!data||!Array.isArray(data.municipios))data={selecionado:'Forquilhinha|SC',municipios:[{nome:'Forquilhinha',uf:'SC',bairros:[]}]};
+if(!data.origem)data.origem='Forquilhinha|SC';if(typeof data.cepOrigem!=='string')data.cepOrigem='';
 const $=id=>document.getElementById(id),modal=$('ita-municipios-modal');
 const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
 const selected=()=>data.municipios.find(m=>m.nome+'|'+m.uf===data.selecionado);
@@ -3887,6 +3895,9 @@ function render(){
  for(const m of data.municipios){const o=document.createElement('option');o.value=m.nome+'|'+m.uf;o.textContent=m.nome+' — '+m.uf;sel.append(o)}
  if(!selected()&&data.municipios.length)data.selecionado=data.municipios[0].nome+'|'+data.municipios[0].uf;
  sel.value=data.selecionado;
+ const atual=data.municipios.find(m=>m.nome+'|'+m.uf===data.origem);
+ $('ita-origem-atual').textContent='Origem configurada: '+(atual?atual.nome+' — '+atual.uf:'não definida')+(data.cepOrigem?' · CEP '+data.cepOrigem:' · CEP não configurado');
+ $('ita-origem-cep').value=data.selecionado===data.origem?data.cepOrigem:'';
  const area=$('ita-municipios-bairros');area.replaceChildren();const m=selected();if(!m)return;
  for(const [i,b] of m.bairros.entries()){
   const line=document.createElement('div');line.className='ita-line';
@@ -3899,6 +3910,13 @@ function render(){
 $('ita-municipios-close').onclick=()=>{modal.classList.remove('ativo');modal.style.removeProperty('display')};
 modal.addEventListener('click',e=>{if(e.target===modal){modal.classList.remove('ativo');modal.style.removeProperty('display')}});
 $('ita-municipios-select').onchange=e=>{data.selecionado=e.target.value;save()};
+$('ita-origem-salvar').onclick=()=>{
+ const cep=$('ita-origem-cep').value.replace(/\\D/g,'');
+ if(!/^\\d{8}$/.test(cep))return alert('Informe um CEP de origem com 8 dígitos.');
+ const m=selected();if(!m)return alert('Selecione um município.');
+ if(!confirm('Definir '+m.nome+' — '+m.uf+' como origem principal de TESTE? Isso não muda o frete real.'))return;
+ data.origem=data.selecionado;data.cepOrigem=cep;save();alert('Origem salva neste navegador. Para valer na loja, ainda será necessária a integração com o servidor.');
+};
 $('ita-municipios-add').onclick=()=>{
  const nome=$('ita-municipios-nome').value.trim(),uf=$('ita-municipios-uf').value.trim().toUpperCase();
  if(nome.length<2||!/^[A-Z]{2}$/.test(uf))return alert('Informe município e UF válida');
