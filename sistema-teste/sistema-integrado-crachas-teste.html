@@ -3899,7 +3899,7 @@ function render(){
  sel.value=data.selecionado;
  const atual=data.municipios.find(m=>m.nome+'|'+m.uf===data.origem);
  $('ita-origem-atual').textContent='Origem configurada: '+(atual?atual.nome+' — '+atual.uf:'não definida')+(data.cepOrigem?' · CEP '+data.cepOrigem:' · CEP não configurado');
- $('ita-origem-cep').value=data.selecionado===data.origem?data.cepOrigem:'';
+ if(document.activeElement!==$('ita-origem-cep')&&!$('ita-origem-cep').value&&data.selecionado===data.origem)$('ita-origem-cep').value=data.cepOrigem;
  const area=$('ita-municipios-bairros');area.replaceChildren();const m=selected();if(!m)return;
  for(const [i,b] of m.bairros.entries()){
   const line=document.createElement('div');line.className='ita-line';
@@ -3914,26 +3914,32 @@ modal.addEventListener('click',e=>{if(e.target===modal){modal.classList.remove('
 $('ita-municipios-select').onchange=e=>{data.selecionado=e.target.value;save()};
 let cepVerificado=null;
 $('ita-origem-cep').addEventListener('input',()=>{cepVerificado=null;$('ita-cep-resultado').textContent=''});
+async function consultarCep(cep){
+ let erros=[];
+ const consultas=[
+  async()=>{const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/',{cache:'no-store'});if(!r.ok)throw Error('ViaCEP indisponível');const j=await r.json();if(j.erro||!j.localidade||!j.uf)throw Error('CEP não localizado no ViaCEP');return {nome:j.localidade,uf:j.uf,bairro:j.bairro||''}},
+  async()=>{const r=await fetch('https://brasilapi.com.br/api/cep/v1/'+cep,{cache:'no-store'});if(!r.ok)throw Error('BrasilAPI não encontrou o CEP');const j=await r.json();if(!j.city||!j.state)throw Error('Cidade ausente na resposta');return {nome:j.city,uf:j.state,bairro:j.neighborhood||''}}
+ ];
+ for(const fn of consultas){try{return await fn()}catch(e){erros.push(e.message)}}
+ throw Error(erros.join(' / '));
+}
 $('ita-cep-buscar').onclick=async()=>{
- const cep=$('ita-origem-cep').value.replace(/\D/g,'');
- if(!/^\d{8}$/.test(cep))return alert('Informe um CEP válido de 8 dígitos.');
- const resultado=$('ita-cep-resultado');resultado.textContent='Consultando CEP...';
- cepVerificado=null;
+ const campo=$('ita-origem-cep'),cep=campo.value.replace(/\D/g,'');
+ if(!/^\d{8}$/.test(cep))return alert('Informe um CEP com 8 números.');
+ const resultado=$('ita-cep-resultado'),btn=$('ita-cep-buscar');
+ resultado.textContent='Consultando CEP...';cepVerificado=null;btn.disabled=true;
  try{
-  const response=await fetch('https://viacep.com.br/ws/'+cep+'/json/',{cache:'no-store'});
-  if(!response.ok)throw Error('Consulta indisponível');
-  const address=await response.json();
-  if(address.erro||!address.localidade||!address.uf)throw Error('CEP não encontrado');
-  const nome=String(address.localidade).trim(),uf=String(address.uf).toUpperCase();
+  const address=await consultarCep(cep);
+  const nome=String(address.nome).trim(),uf=String(address.uf).trim().toUpperCase();
   cepVerificado={cep,nome,uf};
-  resultado.textContent='CEP encontrado: '+nome+' — '+uf+(address.bairro?' · '+address.bairro:'')+'. Clique em Definir município selecionado como origem para confirmar.';
   let m=data.municipios.find(x=>x.nome.toLocaleLowerCase('pt-BR')===nome.toLocaleLowerCase('pt-BR')&&x.uf===uf);
   if(!m){m={nome,uf,bairros:[]};data.municipios.push(m)}
   data.selecionado=m.nome+'|'+m.uf;
   localStorage.setItem(KEY,JSON.stringify(data));
-  render();
-  $('ita-origem-cep').value=cep;
- }catch(err){resultado.textContent='Não foi possível identificar o município. Confira o CEP e a conexão.';console.warn('Consulta CEP:',err)}
+  render();campo.value=cep;
+  resultado.textContent='CEP localizado: '+nome+' — '+uf+(address.bairro?' · Bairro: '+address.bairro:'')+'. Município adicionado/selecionado. Para alterar a origem da loja de TESTE, confirme no botão abaixo.';
+ }catch(err){resultado.textContent='Falha na consulta do CEP '+cep+': '+err.message+'. Verifique se o CEP existe e se a internet está funcionando.';console.warn('Consulta CEP:',err)}
+ finally{btn.disabled=false}
 };
 $('ita-origem-salvar').onclick=()=>{
  const cep=$('ita-origem-cep').value.replace(/\D/g,'');
