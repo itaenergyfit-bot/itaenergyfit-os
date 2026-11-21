@@ -3860,7 +3860,12 @@ render();
 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
 <h2 style="margin:0 0 14px;color:#2ee59d">Frete local · Municípios e bairros</h2>
 <button class="sec" id="ita-municipios-close" type="button">Fechar</button></div>
-<p class="ita-note">MODO DE TESTE: dados guardados somente neste navegador. Ainda não altera Firebase, checkout nem preço cobrado dos clientes.</p>
+<p class="ita-note">MODO DE TESTE: os preços não alteram checkout, SuperFrete nem pedidos. Use os botões abaixo para salvar/carregar uma cópia no Firebase, apenas com administrador autenticado.</p>
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0">
+<button type="button" id="ita-frete-cloud-save">Salvar configuração no Firebase (teste)</button>
+<button type="button" id="ita-frete-cloud-load" class="sec">Carregar configuração do Firebase</button>
+</div>
+<div id="ita-frete-cloud-status" role="status" aria-live="polite" style="font-size:13px;color:#b3d7c9;margin-bottom:10px">Dados locais ainda não sincronizados.</div>
 <label>Município para editar bairros</label><select id="ita-municipios-select"></select>
 <div style="border:1px solid #39745e;padding:12px;border-radius:10px;margin:8px 0 16px">
 <strong>Origem principal da loja (teste)</strong>
@@ -3890,7 +3895,50 @@ let data;try{data=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
 if(!data||!Array.isArray(data.municipios))data={selecionado:'Forquilhinha|SC',municipios:[{nome:'Forquilhinha',uf:'SC',bairros:[]}]};
 if(!data.origem)data.origem='Forquilhinha|SC';if(typeof data.cepOrigem!=='string')data.cepOrigem='';
 const $=id=>document.getElementById(id),modal=$('ita-municipios-modal');
-const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render();$('ita-frete-cloud-status').textContent='Alterações locais não sincronizadas com o Firebase.'};
+const CLOUD_DOC='freteLocalTeste';
+function adminDb(){
+ if(!window.firebase||!firebase.apps.length)throw Error('Firebase ainda não carregou.');
+ const user=firebase.auth().currentUser;
+ if(!user||user.email?.toLowerCase()!=='itaenergyfit@gmail.com')throw Error('Entre com o administrador principal para sincronizar.');
+ return firebase.firestore();
+}
+function validateCloud(d){
+ if(!d||!Array.isArray(d.municipios)||d.municipios.length>200)throw Error('Configuração inválida.');
+ const municipios=d.municipios.map(m=>{
+  if(typeof m.nome!=='string'||m.nome.length<2||m.nome.length>100||!/^[A-Z]{2}$/.test(m.uf)||!Array.isArray(m.bairros)||m.bairros.length>300)throw Error('Município inválido.');
+  return {nome:m.nome,uf:m.uf,bairros:m.bairros.map(b=>{
+   if(typeof b.nome!=='string'||b.nome.length<2||b.nome.length>100||!Number.isFinite(b.valor)||b.valor<0||b.valor>500)throw Error('Bairro/preço inválido.');
+   return {nome:b.nome,valor:b.valor};
+  })};
+ });
+ if(typeof d.selecionado!=='string'||typeof d.origem!=='string'||typeof d.cepOrigem!=='string'||(d.cepOrigem&&!/^\d{8}$/.test(d.cepOrigem)))throw Error('Origem/CEP inválidos.');
+ return {selecionado:d.selecionado,origem:d.origem,cepOrigem:d.cepOrigem,municipios};
+}
+$('ita-frete-cloud-save').onclick=async()=>{
+ const status=$('ita-frete-cloud-status'),btn=$('ita-frete-cloud-save');
+ try{
+  const db=adminDb(),payload=validateCloud(data);
+  if(!confirm('Salvar a configuração de FRETE LOCAL DE TESTE no Firebase? Não altera o checkout nem o frete real.'))return;
+  btn.disabled=true;status.textContent='Salvando no Firebase...';
+  await db.collection('config').doc(CLOUD_DOC).set({...payload,atualizado:firebase.firestore.FieldValue.serverTimestamp(),modo:'teste'});
+  status.textContent='Configuração de teste salva no Firebase com sucesso.';
+ }catch(e){status.textContent='Não foi possível salvar: '+(e.code||e.message)+'. Verifique as regras de acesso do Firestore.'}
+ finally{btn.disabled=false}
+};
+$('ita-frete-cloud-load').onclick=async()=>{
+ const status=$('ita-frete-cloud-status'),btn=$('ita-frete-cloud-load');
+ try{
+  const db=adminDb();btn.disabled=true;status.textContent='Buscando configuração no Firebase...';
+  const doc=await db.collection('config').doc(CLOUD_DOC).get();
+  if(!doc.exists){status.textContent='Ainda não há configuração de teste salva no Firebase.';return}
+  const payload=validateCloud(doc.data());
+  if(!confirm('Substituir os cadastros LOCAIS deste navegador pelos dados salvos no Firebase?')){status.textContent='Carregamento cancelado.';return}
+  data=payload;localStorage.setItem(KEY,JSON.stringify(data));render();status.textContent='Configuração carregada do Firebase com sucesso.';
+ }catch(e){status.textContent='Não foi possível carregar: '+(e.code||e.message)}
+ finally{btn.disabled=false}
+};
+
 const selected=()=>data.municipios.find(m=>m.nome+'|'+m.uf===data.selecionado);
 function render(){
  const sel=$('ita-municipios-select');sel.replaceChildren();
