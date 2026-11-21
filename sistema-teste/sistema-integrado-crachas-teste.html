@@ -2703,6 +2703,89 @@ help.addEventListener("click",async function(){const address=email.value.trim();
 
 
 
+
+<!-- ITA-MUNICIPIOS-BAIRROS-TESTE-V1 -->
+<style>
+#ita-municipios-modal{position:fixed;inset:0;z-index:2147483000;background:#000b;display:none;align-items:center;justify-content:center;padding:16px;font-family:Arial,sans-serif}
+#ita-municipios-modal.ativo{display:flex}
+#ita-municipios-modal .ita-card{width:min(760px,96vw);max-height:90vh;overflow:auto;background:#132522;color:#f4fff9;border:1px solid #2ee59d;border-radius:16px;padding:22px;box-shadow:0 18px 60px #0008}
+#ita-municipios-modal input,#ita-municipios-modal select{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #57786c;background:#1b332e;color:#fff;margin:5px 0 12px}
+#ita-municipios-modal label{display:block;font-size:13px;font-weight:bold}
+#ita-municipios-modal button,#ita-municipios-open{cursor:pointer;border:1px solid #2ee59d;border-radius:8px;background:#2ee59d;color:#092019;padding:10px 13px;font-weight:bold}
+#ita-municipios-modal button.sec{background:transparent;color:#d9fff0}
+#ita-municipios-modal .ita-line{display:grid;grid-template-columns:1fr 110px auto;gap:8px;align-items:end}
+#ita-municipios-modal .ita-note{font-size:12px;color:#b3d7c9}
+@media(max-width:520px){#ita-municipios-modal .ita-line{grid-template-columns:1fr 90px}.ita-line button{grid-column:1/-1}}
+</style>
+<div id="ita-municipios-modal" role="dialog" aria-modal="true" aria-label="Municípios e preços por bairro">
+<div class="ita-card">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+<h2 style="margin:0 0 14px;color:#2ee59d">Frete local · Municípios e bairros</h2>
+<button class="sec" id="ita-municipios-close" type="button">Fechar</button></div>
+<p class="ita-note">MODO DE TESTE: dados guardados somente neste navegador. Ainda não altera Firebase, checkout nem preço cobrado dos clientes.</p>
+<label>Município selecionado</label><select id="ita-municipios-select"></select>
+<div style="display:grid;grid-template-columns:1fr 85px auto;gap:8px;align-items:end">
+<div><label>Novo município</label><input id="ita-municipios-nome" placeholder="Ex.: Itapipoca"></div>
+<div><label>UF</label><input id="ita-municipios-uf" maxlength="2" placeholder="CE"></div>
+<button id="ita-municipios-add" type="button">Adicionar</button></div>
+<h3 style="margin:16px 0 8px">Preços por bairro</h3>
+<div id="ita-municipios-bairros"></div>
+<div style="display:grid;grid-template-columns:1fr 120px auto;gap:8px;align-items:end">
+<div><label>Bairro</label><input id="ita-bairro-nome" placeholder="Nome do bairro"></div>
+<div><label>Valor (R$)</label><input id="ita-bairro-valor" type="number" min="0" max="500" step="0.01" placeholder="8.00"></div>
+<button id="ita-bairro-add" type="button">Adicionar</button></div>
+<p class="ita-note">Esta ferramenta não altera o CEP de origem da SuperFrete. A integração segura com o servidor será feita após os testes.</p>
+</div></div>
+<script>
+(function(){
+const KEY='ita_frete_municipios_bairros_teste_v1';
+let data;try{data=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+if(!data||!Array.isArray(data.municipios))data={selecionado:'Forquilhinha|SC',municipios:[{nome:'Forquilhinha',uf:'SC',bairros:[]}]};
+const $=id=>document.getElementById(id),modal=$('ita-municipios-modal');
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
+const selected=()=>data.municipios.find(m=>m.nome+'|'+m.uf===data.selecionado);
+function render(){
+ const sel=$('ita-municipios-select');sel.replaceChildren();
+ for(const m of data.municipios){const o=document.createElement('option');o.value=m.nome+'|'+m.uf;o.textContent=m.nome+' — '+m.uf;sel.append(o)}
+ if(!selected()&&data.municipios.length)data.selecionado=data.municipios[0].nome+'|'+data.municipios[0].uf;
+ sel.value=data.selecionado;
+ const area=$('ita-municipios-bairros');area.replaceChildren();const m=selected();if(!m)return;
+ for(const [i,b] of m.bairros.entries()){
+  const line=document.createElement('div');line.className='ita-line';
+  const name=document.createElement('input');name.value=b.nome;name.setAttribute('aria-label','Nome do bairro');name.onchange=()=>{b.nome=name.value.trim();save()};
+  const price=document.createElement('input');price.type='number';price.step='0.01';price.min='0';price.value=b.valor;price.setAttribute('aria-label','Preço em reais');price.onchange=()=>{const n=Number(price.value);if(Number.isFinite(n)&&n>=0&&n<=500){b.valor=Math.round(n*100)/100;save()}else alert('Valor inválido')};
+  const del=document.createElement('button');del.type='button';del.className='sec';del.textContent='Excluir';del.onclick=()=>{if(confirm('Excluir este bairro?')){m.bairros.splice(i,1);save()}};
+  line.append(name,price,del);area.append(line)
+ }
+}
+$('ita-municipios-close').onclick=()=>modal.classList.remove('ativo');
+modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('ativo')});
+$('ita-municipios-select').onchange=e=>{data.selecionado=e.target.value;save()};
+$('ita-municipios-add').onclick=()=>{
+ const nome=$('ita-municipios-nome').value.trim(),uf=$('ita-municipios-uf').value.trim().toUpperCase();
+ if(nome.length<2||!/^[A-Z]{2}$/.test(uf))return alert('Informe município e UF válida');
+ if(data.municipios.some(m=>m.nome.toLowerCase()===nome.toLowerCase()&&m.uf===uf))return alert('Município já cadastrado');
+ data.municipios.push({nome,uf,bairros:[]});data.selecionado=nome+'|'+uf;$('ita-municipios-nome').value='';$('ita-municipios-uf').value='';save()
+};
+$('ita-bairro-add').onclick=()=>{
+ const m=selected(),nome=$('ita-bairro-nome').value.trim(),v=Number($('ita-bairro-valor').value);
+ if(!m||nome.length<2||!$('ita-bairro-valor').value||!Number.isFinite(v)||v<0||v>500)return alert('Informe bairro e valor válido');
+ if(m.bairros.some(b=>b.nome.toLowerCase()===nome.toLowerCase()))return alert('Bairro já cadastrado');
+ m.bairros.push({nome,valor:Math.round(v*100)/100});$('ita-bairro-nome').value='';$('ita-bairro-valor').value='';save()
+};
+function addButton(){
+ if($('ita-municipios-open'))return;
+ const tabs=[...document.querySelectorAll('button,[role="tab"]')];
+ const tab=tabs.find(x=>(x.textContent||'').trim().toUpperCase()==='FRETE'&&!x.closest('#ita-municipios-modal'));
+ if(!tab||!tab.parentElement)return;
+ const b=document.createElement('button');b.type='button';b.id='ita-municipios-open';b.textContent='📍 MUNICÍPIOS / BAIRROS';b.className=tab.className;
+ b.style.border='1px solid #2ee59d';b.style.color='#2ee59d';b.style.background='transparent';
+ b.onclick=()=>{render();modal.classList.add('ativo')};tab.insertAdjacentElement('afterend',b)
+}
+document.addEventListener('DOMContentLoaded',addButton);new MutationObserver(addButton).observe(document.documentElement,{childList:true,subtree:true});addButton();render()
+})();
+</script>
+
 </body> na loja ${te.lojaUrl} -->
 <div id="ita-widget" data-cupom="${P.cupomPadrao}" data-nome="${P.nomeAgente}" data-whats="${P.whatsapp}" data-insta="${P.instagram}"></div>
 <script>
